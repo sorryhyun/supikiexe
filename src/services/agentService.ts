@@ -8,8 +8,36 @@ type EmotionCallback = (emotion: Emotion, duration: number) => void;
 
 export class AgentService {
   private listeners: UnlistenFn[] = [];
-  private emotionPollInterval: number | null = null;
   private emotionCallbacks: EmotionCallback[] = [];
+  private emotionListener: UnlistenFn | null = null;
+
+  constructor() {
+    // Set up emotion event listener once
+    this.setupEmotionListener();
+  }
+
+  /**
+   * Set up persistent listener for emotion events from sidecar
+   * No more polling - emotions come directly through events!
+   */
+  private async setupEmotionListener(): Promise<void> {
+    if (this.emotionListener) return;
+
+    this.emotionListener = await listen<{
+      type: string;
+      emotion: string;
+      duration: number;
+    }>("agent-emotion", (event) => {
+      const { emotion, duration } = event.payload;
+      console.log("[AgentService] Emotion event:", emotion, duration);
+
+      if (EMOTIONS.includes(emotion as Emotion)) {
+        for (const callback of this.emotionCallbacks) {
+          callback(emotion as Emotion, duration);
+        }
+      }
+    });
+  }
 
   async sendMessage(
     prompt: string,
@@ -18,67 +46,63 @@ export class AgentService {
     console.log("[AgentService] Sending message:", prompt);
     callbacks.onStreamStart();
 
-    // Clean up any previous listeners
-    await this.cleanup();
+    // Clean up any previous query listeners
+    await this.cleanupQueryListeners();
 
     try {
       // Set up event listeners for streaming
-      const streamListener = await listen<string>("claude-stream", (event) => {
+      const streamListener = await listen<string>("agent-stream", (event) => {
         console.log("[AgentService] Stream event:", event.payload);
         callbacks.onPartialMessage(event.payload);
       });
       this.listeners.push(streamListener);
 
-      const resultListener = await listen<{ subtype: string; result: string }>(
-        "claude-result",
-        (event) => {
-          console.log("[AgentService] Result event:", event.payload);
-          const { result } = event.payload;
-          callbacks.onComplete(result, {
-            costUsd: 0,
-            sessionId: "",
-          });
-        }
-      );
+      const resultListener = await listen<{
+        sessionId: string;
+        success: boolean;
+        text: string;
+      }>("agent-result", (event) => {
+        console.log("[AgentService] Result event:", event.payload);
+        const { text, sessionId } = event.payload;
+        callbacks.onComplete(text, {
+          costUsd: 0,
+          sessionId: sessionId || "",
+        });
+      });
       this.listeners.push(resultListener);
 
-      const errorListener = await listen<string>("claude-error", (event) => {
-        console.error("[AgentService] Error event:", event.payload);
-        callbacks.onError(new Error(event.payload));
-      });
+      const errorListener = await listen<{ error: string }>(
+        "agent-error",
+        (event) => {
+          console.error("[AgentService] Error event:", event.payload);
+          callbacks.onError(new Error(event.payload.error));
+        }
+      );
       this.listeners.push(errorListener);
 
       // Listen to raw output for debugging
-      const rawListener = await listen<string>("claude-raw", (event) => {
-        console.log("[AgentService] Raw CLI output:", event.payload);
+      const rawListener = await listen<string>("agent-raw", (event) => {
+        console.log("[AgentService] Raw output:", event.payload);
       });
       this.listeners.push(rawListener);
 
-      console.log("[AgentService] Invoking send_claude_message...");
-      // Invoke the Rust command
-      const result = await invoke<string>("send_claude_message", {
+      console.log("[AgentService] Invoking send_agent_message...");
+      // Invoke the Rust command (now async, returns immediately)
+      await invoke("send_agent_message", {
         message: prompt,
       });
 
-      console.log("[AgentService] Invoke returned:", result);
-      // If we got a direct result (no streaming events), use it
-      if (result) {
-        callbacks.onComplete(result, {
-          costUsd: 0,
-          sessionId: await this.getSessionId() || "",
-        });
-      }
+      console.log("[AgentService] Message sent to sidecar");
     } catch (error) {
       console.error("[AgentService] Invoke error:", error);
       callbacks.onError(
         error instanceof Error ? error : new Error(String(error))
       );
-    } finally {
-      await this.cleanup();
+      await this.cleanupQueryListeners();
     }
   }
 
-  private async cleanup(): Promise<void> {
+  private async cleanupQueryListeners(): Promise<void> {
     for (const unlisten of this.listeners) {
       unlisten();
     }
@@ -86,13 +110,12 @@ export class AgentService {
   }
 
   async interrupt(): Promise<void> {
-    // Note: Interrupting a spawned process requires more complex handling
-    // For now, we just clean up listeners
-    await this.cleanup();
+    // Clean up listeners - sidecar will handle query cancellation
+    await this.cleanupQueryListeners();
   }
 
   async clearSession(): Promise<void> {
-    await invoke("clear_claude_session");
+    await invoke("clear_agent_session");
   }
 
   async getSessionId(): Promise<string | null> {
@@ -100,52 +123,22 @@ export class AgentService {
   }
 
   /**
-   * Register a callback for MCP emotion updates
+   * Register a callback for emotion updates
    */
   onEmotionUpdate(callback: EmotionCallback): () => void {
     this.emotionCallbacks.push(callback);
     return () => {
-      this.emotionCallbacks = this.emotionCallbacks.filter((cb) => cb !== callback);
+      this.emotionCallbacks = this.emotionCallbacks.filter(
+        (cb) => cb !== callback
+      );
     };
   }
 
   /**
-   * Start polling for emotion updates from the MCP server
+   * Stop the sidecar process (call on app exit)
    */
-  startEmotionPolling(): void {
-    if (this.emotionPollInterval) return;
-
-    // Reset emotion tracking when starting
-    invoke("reset_emotion_tracking").catch(console.error);
-
-    this.emotionPollInterval = window.setInterval(async () => {
-      try {
-        const result = await invoke<{
-          emotion: string;
-          duration: number;
-          timestamp: number;
-        } | null>("check_emotion_update");
-
-        if (result && EMOTIONS.includes(result.emotion as Emotion)) {
-          console.log("[AgentService] MCP emotion update:", result);
-          for (const callback of this.emotionCallbacks) {
-            callback(result.emotion as Emotion, result.duration);
-          }
-        }
-      } catch (e) {
-        // Silently ignore polling errors
-      }
-    }, 200); // Poll every 200ms
-  }
-
-  /**
-   * Stop polling for emotion updates
-   */
-  stopEmotionPolling(): void {
-    if (this.emotionPollInterval) {
-      clearInterval(this.emotionPollInterval);
-      this.emotionPollInterval = null;
-    }
+  async stopSidecar(): Promise<void> {
+    await invoke("stop_sidecar");
   }
 }
 

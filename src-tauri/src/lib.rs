@@ -1,38 +1,45 @@
-use std::fs;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
+use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::Mutex;
-use std::time::SystemTime;
+use std::thread;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     Emitter, Manager,
 };
 
-/// Persistent session ID for conversation continuity
+/// Persistent sidecar process
+static SIDECAR_PROCESS: Mutex<Option<Child>> = Mutex::new(None);
+
+/// Sidecar stdin for sending commands
+static SIDECAR_STDIN: Mutex<Option<ChildStdin>> = Mutex::new(None);
+
+/// Current session ID (maintained by sidecar, cached here)
 static SESSION_ID: Mutex<Option<String>> = Mutex::new(None);
 
-/// Last emotion file modification time
-static LAST_EMOTION_CHECK: Mutex<Option<SystemTime>> = Mutex::new(None);
-
-/// Get the emotion file path
-fn get_emotion_file_path() -> PathBuf {
-    std::env::temp_dir().join("clawd-emotion").join("current.json")
-}
-
-/// Get the MCP config path
-fn get_mcp_config_path() -> Option<PathBuf> {
-    // Try to find mcp/config.json relative to the executable
+/// Get the sidecar script path
+fn get_sidecar_path() -> Option<PathBuf> {
     if let Ok(exe_path) = std::env::current_exe() {
         let exe_dir = exe_path.parent()?;
 
-        // During development, check relative to the project root
+        // Try various paths for development and production
         let possible_paths = vec![
-            exe_dir.join("mcp").join("config.json"),
-            exe_dir.join("..").join("..").join("..").join("mcp").join("config.json"),
-            exe_dir.join("..").join("..").join("..").join("..").join("mcp").join("config.json"),
-            PathBuf::from("mcp").join("config.json"),
+            exe_dir.join("sidecar").join("agent-sidecar.mjs"),
+            exe_dir
+                .join("..")
+                .join("..")
+                .join("..")
+                .join("sidecar")
+                .join("agent-sidecar.mjs"),
+            exe_dir
+                .join("..")
+                .join("..")
+                .join("..")
+                .join("..")
+                .join("sidecar")
+                .join("agent-sidecar.mjs"),
+            PathBuf::from("sidecar").join("agent-sidecar.mjs"),
         ];
 
         for path in possible_paths {
@@ -44,200 +51,167 @@ fn get_mcp_config_path() -> Option<PathBuf> {
     None
 }
 
-/// Get the system prompt from file
-fn get_system_prompt() -> Option<String> {
-    if let Ok(exe_path) = std::env::current_exe() {
-        let exe_dir = exe_path.parent()?;
+/// Spawn the sidecar process if not already running
+fn ensure_sidecar_running(app: tauri::AppHandle) -> Result<(), String> {
+    let mut process_guard = SIDECAR_PROCESS.lock().unwrap();
 
-        let possible_paths = vec![
-            exe_dir.join("prompt.txt"),
-            exe_dir.join("..").join("..").join("..").join("src-tauri").join("prompt.txt"),
-            exe_dir.join("..").join("..").join("..").join("..").join("src-tauri").join("prompt.txt"),
-            PathBuf::from("src-tauri").join("prompt.txt"),
-        ];
-
-        for path in possible_paths {
-            if path.exists() {
-                if let Ok(content) = fs::read_to_string(&path) {
-                    println!("[Rust] Loaded prompt from: {:?}", path);
-                    return Some(content);
-                }
+    // Check if sidecar is already running
+    if let Some(ref mut child) = *process_guard {
+        // Check if still alive
+        match child.try_wait() {
+            Ok(None) => return Ok(()), // Still running
+            Ok(Some(_)) => {
+                println!("[Rust] Sidecar exited, will restart");
+            }
+            Err(e) => {
+                println!("[Rust] Error checking sidecar status: {}", e);
             }
         }
     }
-    None
-}
 
-/// Send a message to Claude CLI and stream the response
-#[tauri::command]
-async fn send_claude_message(
-    app: tauri::AppHandle,
-    message: String,
-) -> Result<String, String> {
-    println!("[Rust] send_claude_message called with: {}", message);
+    // Spawn new sidecar
+    let sidecar_path = get_sidecar_path().ok_or("Could not find sidecar script")?;
+    println!("[Rust] Starting sidecar: {:?}", sidecar_path);
 
-    let session_id = SESSION_ID.lock().unwrap().clone();
-    println!("[Rust] Current session_id: {:?}", session_id);
+    let mut cmd = Command::new("node");
+    cmd.arg(&sidecar_path)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
 
-    // Build claude command with appropriate flags
-    // Using: claude -p "message" --output-format stream-json --verbose
-    let mut cmd = Command::new("claude");
-
-    // Add system prompt for Clawd personality (only for new sessions)
-    if session_id.is_none() {
-        if let Some(prompt) = get_system_prompt() {
-            cmd.arg("--system-prompt").arg(prompt);
-        } else {
-            println!("[Rust] Warning: Could not load prompt.txt");
+    // Set working directory to project root for module resolution
+    if let Some(parent) = sidecar_path.parent() {
+        if let Some(project_root) = parent.parent() {
+            cmd.current_dir(project_root);
         }
     }
 
-    cmd.arg("-p") // Print mode (non-interactive)
-        .arg(&message)
-        .arg("--output-format")
-        .arg("stream-json")
-        .arg("--verbose"); // Required for stream-json with --print
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| format!("Failed to spawn sidecar: {}", e))?;
 
-    // Resume session if we have one
-    if let Some(ref sid) = session_id {
-        cmd.arg("--resume").arg(sid);
-    }
+    // Take stdin for sending commands
+    let stdin = child.stdin.take().ok_or("Failed to capture sidecar stdin")?;
+    *SIDECAR_STDIN.lock().unwrap() = Some(stdin);
 
-    // Add MCP config if available
-    if let Some(mcp_path) = get_mcp_config_path() {
-        println!("[Rust] Using MCP config: {:?}", mcp_path);
-        cmd.arg("--mcp-config").arg(&mcp_path);
-    } else {
-        println!("[Rust] No MCP config found, continuing without emotion control");
-    }
+    // Take stdout for reading responses
+    let stdout = child.stdout.take().ok_or("Failed to capture sidecar stdout")?;
 
-    println!("[Rust] Command: claude -p \"{}\" --output-format stream-json --verbose", message);
-
-    // Set up stdio
-    cmd.stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-
-    println!("[Rust] Spawning claude CLI...");
-    // Spawn the process
-    let mut child = cmd.spawn().map_err(|e| {
-        let err_msg = format!("Failed to spawn claude: {}. Make sure Claude Code is installed and in PATH.", e);
-        println!("[Rust] {}", err_msg);
-        err_msg
-    })?;
-
-    println!("[Rust] Claude CLI spawned successfully");
-
-    let stdout = child.stdout.take().ok_or("Failed to capture stdout")?;
+    // Take stderr for logging
     let stderr = child.stderr.take();
-    let reader = BufReader::new(stdout);
 
-    // Spawn a thread to read stderr
+    // Spawn thread to read stdout and emit events
+    let app_handle = app.clone();
+    thread::spawn(move || {
+        let reader = BufReader::new(stdout);
+        for line in reader.lines() {
+            if let Ok(line_content) = line {
+                if line_content.trim().is_empty() {
+                    continue;
+                }
+
+                // Parse JSON and emit appropriate events
+                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&line_content) {
+                    let msg_type = json.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                    println!("[Rust] Sidecar event: {}", msg_type);
+
+                    match msg_type {
+                        "ready" => {
+                            println!("[Rust] Sidecar is ready");
+                        }
+                        "stream" => {
+                            if let Some(text) = json.get("text").and_then(|t| t.as_str()) {
+                                let _ = app_handle.emit("agent-stream", text);
+                            }
+                        }
+                        "emotion" => {
+                            // Emit emotion event directly - no file polling needed!
+                            let _ = app_handle.emit("agent-emotion", &json);
+                        }
+                        "result" => {
+                            // Update cached session ID
+                            if let Some(sid) = json.get("sessionId").and_then(|s| s.as_str()) {
+                                *SESSION_ID.lock().unwrap() = Some(sid.to_string());
+                            }
+                            let _ = app_handle.emit("agent-result", &json);
+                        }
+                        "error" => {
+                            let _ = app_handle.emit("agent-error", &json);
+                        }
+                        _ => {
+                            // Emit raw for debugging
+                            let _ = app_handle.emit("agent-raw", &line_content);
+                        }
+                    }
+                }
+            }
+        }
+        println!("[Rust] Sidecar stdout reader ended");
+    });
+
+    // Spawn thread to read stderr for logging
     if let Some(stderr) = stderr {
-        std::thread::spawn(move || {
-            let stderr_reader = BufReader::new(stderr);
-            for line in stderr_reader.lines() {
-                if let Ok(line) = line {
-                    println!("[Rust] STDERR: {}", line);
+        thread::spawn(move || {
+            let reader = BufReader::new(stderr);
+            for line in reader.lines() {
+                if let Ok(line_content) = line {
+                    println!("[Rust] Sidecar: {}", line_content);
                 }
             }
         });
     }
 
-    let mut full_response = String::new();
-    let mut captured_session_id: Option<String> = None;
-    let mut line_count = 0;
+    *process_guard = Some(child);
+    println!("[Rust] Sidecar started successfully");
+    Ok(())
+}
 
-    println!("[Rust] Starting to read stdout lines...");
+/// Send a command to the sidecar
+fn send_to_sidecar(cmd: &serde_json::Value) -> Result<(), String> {
+    let mut stdin_guard = SIDECAR_STDIN.lock().unwrap();
+    let stdin = stdin_guard.as_mut().ok_or("Sidecar not running")?;
 
-    // Read and emit each line
-    for line in reader.lines() {
-        line_count += 1;
-        match line {
-            Ok(line_content) => {
-                println!("[Rust] Line {}: {} chars", line_count, line_content.len());
-                if line_content.trim().is_empty() {
-                    continue;
-                }
+    let cmd_str = serde_json::to_string(cmd).map_err(|e| format!("JSON error: {}", e))?;
+    writeln!(stdin, "{}", cmd_str).map_err(|e| format!("Write error: {}", e))?;
+    stdin.flush().map_err(|e| format!("Flush error: {}", e))?;
 
-                // Try to parse as JSON to extract useful info
-                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&line_content) {
-                    println!("[Rust] Parsed JSON type: {:?}", json.get("type"));
-                    // Capture session ID from init message
-                    if json.get("type").and_then(|t| t.as_str()) == Some("system") {
-                        if let Some(sid) = json.get("session_id").and_then(|s| s.as_str()) {
-                            captured_session_id = Some(sid.to_string());
-                        }
-                    }
+    Ok(())
+}
 
-                    // Extract text content from assistant messages
-                    if json.get("type").and_then(|t| t.as_str()) == Some("assistant") {
-                        if let Some(content) = json.get("message").and_then(|m| m.get("content")) {
-                            if let Some(arr) = content.as_array() {
-                                for block in arr {
-                                    if block.get("type").and_then(|t| t.as_str()) == Some("text") {
-                                        if let Some(text) = block.get("text").and_then(|t| t.as_str()) {
-                                            full_response = text.to_string();
-                                            // Emit partial update
-                                            let _ = app.emit("claude-stream", text);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+/// Send a message to Claude via the sidecar
+#[tauri::command]
+async fn send_agent_message(app: tauri::AppHandle, message: String) -> Result<(), String> {
+    println!("[Rust] send_agent_message called with: {}", message);
 
-                    // Handle result message
-                    if json.get("type").and_then(|t| t.as_str()) == Some("result") {
-                        if let Some(result) = json.get("result").and_then(|r| r.as_str()) {
-                            full_response = result.to_string();
-                        }
+    // Ensure sidecar is running
+    ensure_sidecar_running(app)?;
 
-                        // Emit tool usage info
-                        if let Some(subtype) = json.get("subtype").and_then(|s| s.as_str()) {
-                            let _ = app.emit("claude-result", serde_json::json!({
-                                "subtype": subtype,
-                                "result": &full_response
-                            }));
-                        }
-                    }
-                }
+    // Get current session ID
+    let session_id = SESSION_ID.lock().unwrap().clone();
 
-                // Emit raw line for debugging/advanced use
-                let _ = app.emit("claude-raw", &line_content);
-            }
-            Err(e) => {
-                let _ = app.emit("claude-error", format!("Read error: {}", e));
-            }
-        }
-    }
+    // Send query command to sidecar
+    let cmd = serde_json::json!({
+        "type": "query",
+        "prompt": message,
+        "sessionId": session_id
+    });
 
-    println!("[Rust] Finished reading lines. Total: {}", line_count);
+    send_to_sidecar(&cmd)?;
 
-    // Wait for process to complete
-    println!("[Rust] Waiting for process to complete...");
-    let status = child.wait().map_err(|e| format!("Process wait failed: {}", e))?;
-    println!("[Rust] Process exited with status: {}", status);
-
-    // Store session ID for future messages
-    if let Some(sid) = captured_session_id {
-        println!("[Rust] Storing session ID: {}", sid);
-        *SESSION_ID.lock().unwrap() = Some(sid);
-    }
-
-    if status.success() {
-        println!("[Rust] Returning response: {} chars", full_response.len());
-        Ok(full_response)
-    } else {
-        let err = format!("Claude exited with status: {}", status);
-        println!("[Rust] {}", err);
-        Err(err)
-    }
+    Ok(())
 }
 
 /// Clear the current session
 #[tauri::command]
-fn clear_claude_session() {
+fn clear_agent_session() -> Result<(), String> {
     *SESSION_ID.lock().unwrap() = None;
+
+    // Tell sidecar to clear session too
+    let cmd = serde_json::json!({
+        "type": "clear_session"
+    });
+
+    send_to_sidecar(&cmd)
 }
 
 /// Get current session ID
@@ -246,43 +220,16 @@ fn get_session_id() -> Option<String> {
     SESSION_ID.lock().unwrap().clone()
 }
 
-/// Check for emotion file changes and return the emotion if updated
+/// Stop the sidecar process
 #[tauri::command]
-fn check_emotion_update() -> Option<serde_json::Value> {
-    let emotion_path = get_emotion_file_path();
-
-    // Check if file exists
-    if !emotion_path.exists() {
-        return None;
+fn stop_sidecar() {
+    let mut process_guard = SIDECAR_PROCESS.lock().unwrap();
+    if let Some(mut child) = process_guard.take() {
+        let _ = child.kill();
+        let _ = child.wait();
+        println!("[Rust] Sidecar stopped");
     }
-
-    // Get file modification time
-    let metadata = fs::metadata(&emotion_path).ok()?;
-    let modified = metadata.modified().ok()?;
-
-    // Check if we've already processed this update
-    let mut last_check = LAST_EMOTION_CHECK.lock().unwrap();
-    if let Some(last) = *last_check {
-        if modified <= last {
-            return None;
-        }
-    }
-
-    // Update last check time
-    *last_check = Some(modified);
-
-    // Read and parse the emotion file
-    let content = fs::read_to_string(&emotion_path).ok()?;
-    let emotion_data: serde_json::Value = serde_json::from_str(&content).ok()?;
-
-    println!("[Rust] Emotion update detected: {:?}", emotion_data);
-    Some(emotion_data)
-}
-
-/// Reset emotion file tracking (call when starting a new conversation)
-#[tauri::command]
-fn reset_emotion_tracking() {
-    *LAST_EMOTION_CHECK.lock().unwrap() = Some(SystemTime::now());
+    *SIDECAR_STDIN.lock().unwrap() = None;
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -290,11 +237,10 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
-            send_claude_message,
-            clear_claude_session,
+            send_agent_message,
+            clear_agent_session,
             get_session_id,
-            check_emotion_update,
-            reset_emotion_tracking
+            stop_sidecar
         ])
         .setup(|app| {
             // Create tray menu
@@ -310,6 +256,8 @@ pub fn run() {
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "quit" => {
+                        // Stop sidecar before quitting
+                        stop_sidecar();
                         app.exit(0);
                     }
                     "show" => {

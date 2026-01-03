@@ -30,11 +30,11 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
   const streamingMessageId = useRef<string | null>(null);
   const toolsInUseRef = useRef<string[]>([]);
 
-  // Register MCP emotion callback
+  // Register emotion callback - emotions now come via events, not polling!
   useEffect(() => {
     const unsubscribe = agentService.current.onEmotionUpdate(
       (emotion, _duration) => {
-        console.log("[useAgentChat] MCP emotion received:", emotion);
+        console.log("[useAgentChat] Emotion event received:", emotion);
         onEmotionChange?.(emotion);
       }
     );
@@ -131,9 +131,6 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
       const placeholderMsg = addMessage("clawd", "", { isStreaming: true });
       streamingMessageId.current = placeholderMsg.id;
 
-      // Start emotion polling for MCP updates
-      agentService.current.startEmotionPolling();
-
       const callbacks: AgentQueryCallbacks = {
         onStreamStart: () => {
           toolsInUseRef.current = [];
@@ -149,14 +146,7 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
         onPartialMessage: (partialContent) => {
           setStreamingState((prev) => ({ ...prev, partialContent }));
           updateStreamingMessage(partialContent);
-
-          // Update emotion based on content
-          const emotion = detectEmotion({
-            content: partialContent,
-            isToolRunning: toolsInUseRef.current.length > 0,
-            hasError: false,
-          });
-          onEmotionChange?.(emotion);
+          // Note: Emotions are handled via MCP events from the sidecar
         },
 
         onToolUse: (toolName, status) => {
@@ -181,9 +171,6 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
         },
 
         onComplete: (result, metadata) => {
-          // Stop emotion polling
-          agentService.current.stopEmotionPolling();
-
           toolsInUseRef.current = [];
           setStreamingState({
             isStreaming: false,
@@ -196,7 +183,7 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
             costUsd: metadata.costUsd,
           });
 
-          // Final emotion based on result
+          // Final emotion based on result (fallback)
           const emotion = detectEmotion({
             content: result,
             isToolRunning: false,
@@ -209,9 +196,6 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
         },
 
         onError: (err) => {
-          // Stop emotion polling
-          agentService.current.stopEmotionPolling();
-
           setError(err);
           toolsInUseRef.current = [];
           setStreamingState({
@@ -239,7 +223,6 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
 
   const interrupt = useCallback(() => {
     agentService.current.interrupt();
-    agentService.current.stopEmotionPolling();
     toolsInUseRef.current = [];
     setStreamingState({
       isStreaming: false,
