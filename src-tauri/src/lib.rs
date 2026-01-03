@@ -1,6 +1,9 @@
+use std::fs;
 use std::io::{BufRead, BufReader};
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::Mutex;
+use std::time::SystemTime;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
@@ -9,6 +12,61 @@ use tauri::{
 
 /// Persistent session ID for conversation continuity
 static SESSION_ID: Mutex<Option<String>> = Mutex::new(None);
+
+/// Last emotion file modification time
+static LAST_EMOTION_CHECK: Mutex<Option<SystemTime>> = Mutex::new(None);
+
+/// Get the emotion file path
+fn get_emotion_file_path() -> PathBuf {
+    std::env::temp_dir().join("clawd-emotion").join("current.json")
+}
+
+/// Get the MCP config path
+fn get_mcp_config_path() -> Option<PathBuf> {
+    // Try to find mcp/config.json relative to the executable
+    if let Ok(exe_path) = std::env::current_exe() {
+        let exe_dir = exe_path.parent()?;
+
+        // During development, check relative to the project root
+        let possible_paths = vec![
+            exe_dir.join("mcp").join("config.json"),
+            exe_dir.join("..").join("..").join("..").join("mcp").join("config.json"),
+            exe_dir.join("..").join("..").join("..").join("..").join("mcp").join("config.json"),
+            PathBuf::from("mcp").join("config.json"),
+        ];
+
+        for path in possible_paths {
+            if path.exists() {
+                return Some(path.canonicalize().unwrap_or(path));
+            }
+        }
+    }
+    None
+}
+
+/// Get the system prompt from file
+fn get_system_prompt() -> Option<String> {
+    if let Ok(exe_path) = std::env::current_exe() {
+        let exe_dir = exe_path.parent()?;
+
+        let possible_paths = vec![
+            exe_dir.join("prompt.txt"),
+            exe_dir.join("..").join("..").join("..").join("src-tauri").join("prompt.txt"),
+            exe_dir.join("..").join("..").join("..").join("..").join("src-tauri").join("prompt.txt"),
+            PathBuf::from("src-tauri").join("prompt.txt"),
+        ];
+
+        for path in possible_paths {
+            if path.exists() {
+                if let Ok(content) = fs::read_to_string(&path) {
+                    println!("[Rust] Loaded prompt from: {:?}", path);
+                    return Some(content);
+                }
+            }
+        }
+    }
+    None
+}
 
 /// Send a message to Claude CLI and stream the response
 #[tauri::command]
@@ -24,6 +82,16 @@ async fn send_claude_message(
     // Build claude command with appropriate flags
     // Using: claude -p "message" --output-format stream-json --verbose
     let mut cmd = Command::new("claude");
+
+    // Add system prompt for Clawd personality (only for new sessions)
+    if session_id.is_none() {
+        if let Some(prompt) = get_system_prompt() {
+            cmd.arg("--system-prompt").arg(prompt);
+        } else {
+            println!("[Rust] Warning: Could not load prompt.txt");
+        }
+    }
+
     cmd.arg("-p") // Print mode (non-interactive)
         .arg(&message)
         .arg("--output-format")
@@ -33,6 +101,14 @@ async fn send_claude_message(
     // Resume session if we have one
     if let Some(ref sid) = session_id {
         cmd.arg("--resume").arg(sid);
+    }
+
+    // Add MCP config if available
+    if let Some(mcp_path) = get_mcp_config_path() {
+        println!("[Rust] Using MCP config: {:?}", mcp_path);
+        cmd.arg("--mcp-config").arg(&mcp_path);
+    } else {
+        println!("[Rust] No MCP config found, continuing without emotion control");
     }
 
     println!("[Rust] Command: claude -p \"{}\" --output-format stream-json --verbose", message);
@@ -170,6 +246,45 @@ fn get_session_id() -> Option<String> {
     SESSION_ID.lock().unwrap().clone()
 }
 
+/// Check for emotion file changes and return the emotion if updated
+#[tauri::command]
+fn check_emotion_update() -> Option<serde_json::Value> {
+    let emotion_path = get_emotion_file_path();
+
+    // Check if file exists
+    if !emotion_path.exists() {
+        return None;
+    }
+
+    // Get file modification time
+    let metadata = fs::metadata(&emotion_path).ok()?;
+    let modified = metadata.modified().ok()?;
+
+    // Check if we've already processed this update
+    let mut last_check = LAST_EMOTION_CHECK.lock().unwrap();
+    if let Some(last) = *last_check {
+        if modified <= last {
+            return None;
+        }
+    }
+
+    // Update last check time
+    *last_check = Some(modified);
+
+    // Read and parse the emotion file
+    let content = fs::read_to_string(&emotion_path).ok()?;
+    let emotion_data: serde_json::Value = serde_json::from_str(&content).ok()?;
+
+    println!("[Rust] Emotion update detected: {:?}", emotion_data);
+    Some(emotion_data)
+}
+
+/// Reset emotion file tracking (call when starting a new conversation)
+#[tauri::command]
+fn reset_emotion_tracking() {
+    *LAST_EMOTION_CHECK.lock().unwrap() = Some(SystemTime::now());
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -177,7 +292,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             send_claude_message,
             clear_claude_session,
-            get_session_id
+            get_session_id,
+            check_emotion_update,
+            reset_emotion_tracking
         ])
         .setup(|app| {
             // Create tray menu

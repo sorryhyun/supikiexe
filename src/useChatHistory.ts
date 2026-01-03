@@ -1,5 +1,5 @@
 import { useAgentChat } from "./hooks/useAgentChat";
-import type { MascotState } from "./useMascotState";
+import type { Emotion } from "./emotions";
 import type { AgentChatMessage, StreamingState } from "./services/agentTypes";
 
 // Re-export ChatMessage type for backward compatibility
@@ -9,7 +9,7 @@ export type ChatMessage = AgentChatMessage;
 export type { StreamingState };
 
 interface UseChatHistoryOptions {
-  onEmotionChange?: (state: MascotState) => void;
+  onEmotionChange?: (emotion: Emotion) => void;
 }
 
 /**

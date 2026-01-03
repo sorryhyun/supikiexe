@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "clawd-emotion": {
+      "command": "node",
+      "args": ["emotion-server.mjs"]
+    }
+  }
+}

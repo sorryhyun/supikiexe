@@ -1,4 +1,5 @@
 import type { MascotState } from "../useMascotState";
+import type { Emotion } from "../emotions";
 
 // Streaming message state
 export interface StreamingState {
@@ -46,5 +47,5 @@ export interface EmotionContext {
   hasError: boolean;
 }
 
-// Re-export MascotState for convenience
-export type { MascotState };
+// Re-export types for convenience
+export type { MascotState, Emotion };

@@ -238,6 +238,176 @@ body,
   transform: scale(0.95);
 }
 
+/* ==================== */
+/* Emotion Animations   */
+/* ==================== */
+
+/* Happy emotion - gentle bounce */
+.clawd-emotion-happy {
+  animation: happy-bounce 0.6s ease-in-out infinite;
+}
+
+@keyframes happy-bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+.clawd-emotion-happy .clawd-eye-shine {
+  animation: shine-sparkle 0.8s ease-in-out infinite;
+}
+
+@keyframes shine-sparkle {
+  0%, 100% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Sad emotion - droopy, slow sway */
+.clawd-emotion-sad {
+  animation: sad-sway 2s ease-in-out infinite;
+  filter: brightness(0.9) saturate(0.8);
+}
+
+@keyframes sad-sway {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(2px) rotate(-2deg);
+  }
+}
+
+/* Excited emotion - energetic bounce */
+.clawd-emotion-excited {
+  animation: excited-bounce 0.3s ease-in-out infinite;
+}
+
+@keyframes excited-bounce {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-5px) scale(1.05);
+  }
+}
+
+.clawd-emotion-excited .excited-indicator {
+  animation: star-spin 1s linear infinite;
+}
+
+@keyframes star-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Thinking emotion - slight head tilt, looking up */
+.clawd-emotion-thinking {
+  animation: thinking-tilt 2s ease-in-out infinite;
+}
+
+@keyframes thinking-tilt {
+  0%, 100% {
+    transform: rotate(0deg) translateY(0);
+  }
+  50% {
+    transform: rotate(5deg) translateY(-2px);
+  }
+}
+
+.clawd-emotion-thinking .thinking-indicator {
+  animation: thinking-bubbles 1.5s ease-in-out infinite;
+}
+
+@keyframes thinking-bubbles {
+  0%, 100% {
+    opacity: 0.6;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+/* Confused emotion - head wobble */
+.clawd-emotion-confused {
+  animation: confused-wobble 0.5s ease-in-out infinite;
+}
+
+@keyframes confused-wobble {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-3deg);
+  }
+  75% {
+    transform: rotate(3deg);
+  }
+}
+
+.clawd-emotion-confused .confused-indicator {
+  animation: question-bounce 0.8s ease-in-out infinite;
+}
+
+@keyframes question-bounce {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-2px) rotate(10deg);
+  }
+}
+
+/* Surprised emotion - quick scale pop */
+.clawd-emotion-surprised {
+  animation: surprised-pop 0.4s ease-out;
+}
+
+@keyframes surprised-pop {
+  0% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.clawd-emotion-surprised .clawd-eye {
+  animation: eye-widen 0.4s ease-out;
+}
+
+@keyframes eye-widen {
+  0% {
+    transform: scaleY(1);
+  }
+  30% {
+    transform: scaleY(1.3);
+  }
+  100% {
+    transform: scaleY(1);
+  }
+}
+
+/* Neutral emotion - no special animation */
+.clawd-emotion-neutral {
+  /* Default state, no animation */
+}
+
 /* Chat Interface */
 .chat-container {
   flex: 1;

@@ -4,7 +4,9 @@
       "Bash(npx tsc:*)",
       "Bash(npm run vite:build:*)",
       "WebSearch",
-      "WebFetch(domain:docs.claude.com)"
+      "WebFetch(domain:docs.claude.com)",
+      "Bash(cargo check:*)",
+      "Bash(cargo build:*)"
     ]
   }
 }

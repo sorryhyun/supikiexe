@@ -4,9 +4,10 @@ import { PhysicalPosition, LogicalSize } from "@tauri-apps/api/dpi";
 import Clawd from "./Clawd";
 import SpeechBubble from "./SpeechBubble";
 import ChatInput from "./ChatInput";
-import { useMascotState, type MascotState } from "./useMascotState";
+import { useMascotState } from "./useMascotState";
 import { usePhysics } from "./usePhysics";
 import { useChatHistory } from "./useChatHistory";
+import type { Emotion } from "./emotions";
 
 const WINDOW_WIDTH = 160;
 const WINDOW_HEIGHT = 140;
@@ -24,8 +25,8 @@ function App() {
   const mascot = useMascotState();
 
   // Callback to update mascot emotion based on agent activity
-  const handleEmotionChange = useCallback((emotion: MascotState) => {
-    mascot.setState(emotion);
+  const handleEmotionChange = useCallback((emotion: Emotion) => {
+    mascot.setEmotion(emotion);
   }, [mascot]);
 
   const chat = useChatHistory({ onEmotionChange: handleEmotionChange });
@@ -253,6 +254,7 @@ function App() {
       <Clawd
         state={mascot.state}
         direction={mascot.direction}
+        emotion={mascot.emotion}
         onClick={handleClick}
       />
     </div>

@@ -5,14 +5,14 @@ import type {
   AgentChatMessage,
   StreamingState,
   AgentQueryCallbacks,
-  MascotState,
+  Emotion,
 } from "../services/agentTypes";
 
 const STORAGE_KEY = "clawd-chat-history";
 const MAX_MESSAGES = 100;
 
 interface UseAgentChatOptions {
-  onEmotionChange?: (state: MascotState) => void;
+  onEmotionChange?: (emotion: Emotion) => void;
 }
 
 export function useAgentChat(options: UseAgentChatOptions = {}) {
@@ -29,6 +29,17 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
   const agentService = useRef(getAgentService());
   const streamingMessageId = useRef<string | null>(null);
   const toolsInUseRef = useRef<string[]>([]);
+
+  // Register MCP emotion callback
+  useEffect(() => {
+    const unsubscribe = agentService.current.onEmotionUpdate(
+      (emotion, _duration) => {
+        console.log("[useAgentChat] MCP emotion received:", emotion);
+        onEmotionChange?.(emotion);
+      }
+    );
+    return unsubscribe;
+  }, [onEmotionChange]);
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -120,6 +131,9 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
       const placeholderMsg = addMessage("clawd", "", { isStreaming: true });
       streamingMessageId.current = placeholderMsg.id;
 
+      // Start emotion polling for MCP updates
+      agentService.current.startEmotionPolling();
+
       const callbacks: AgentQueryCallbacks = {
         onStreamStart: () => {
           toolsInUseRef.current = [];
@@ -129,7 +143,7 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
             partialContent: "",
             toolsInUse: [],
           }));
-          onEmotionChange?.("talking");
+          onEmotionChange?.("thinking");
         },
 
         onPartialMessage: (partialContent) => {
@@ -160,13 +174,16 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
             currentToolName: status === "start" ? toolName : undefined,
           }));
 
-          // Show "working" state when tools are running
+          // Show thinking state when tools are running
           if (status === "start") {
-            onEmotionChange?.("talking");
+            onEmotionChange?.("thinking");
           }
         },
 
         onComplete: (result, metadata) => {
+          // Stop emotion polling
+          agentService.current.stopEmotionPolling();
+
           toolsInUseRef.current = [];
           setStreamingState({
             isStreaming: false,
@@ -187,11 +204,14 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
           });
           onEmotionChange?.(emotion);
 
-          // Return to idle after delay
-          setTimeout(() => onEmotionChange?.("idle"), 2000);
+          // Return to neutral after delay
+          setTimeout(() => onEmotionChange?.("neutral"), 3000);
         },
 
         onError: (err) => {
+          // Stop emotion polling
+          agentService.current.stopEmotionPolling();
+
           setError(err);
           toolsInUseRef.current = [];
           setStreamingState({
@@ -201,7 +221,9 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
           });
 
           finalizeStreamingMessage(`Oops! Something went wrong: ${err.message}`);
-          onEmotionChange?.("idle");
+          onEmotionChange?.("sad");
+          // Return to neutral after delay
+          setTimeout(() => onEmotionChange?.("neutral"), 4000);
         },
       };
 
@@ -217,6 +239,7 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
 
   const interrupt = useCallback(() => {
     agentService.current.interrupt();
+    agentService.current.stopEmotionPolling();
     toolsInUseRef.current = [];
     setStreamingState({
       isStreaming: false,

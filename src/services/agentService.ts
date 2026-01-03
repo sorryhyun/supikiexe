@@ -1,9 +1,15 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import type { AgentQueryCallbacks } from "./agentTypes";
+import type { AgentQueryCallbacks, Emotion } from "./agentTypes";
+import { EMOTIONS } from "../emotions";
+
+// Emotion update callback type
+type EmotionCallback = (emotion: Emotion, duration: number) => void;
 
 export class AgentService {
   private listeners: UnlistenFn[] = [];
+  private emotionPollInterval: number | null = null;
+  private emotionCallbacks: EmotionCallback[] = [];
 
   async sendMessage(
     prompt: string,
@@ -91,6 +97,55 @@ export class AgentService {
 
   async getSessionId(): Promise<string | null> {
     return await invoke<string | null>("get_session_id");
+  }
+
+  /**
+   * Register a callback for MCP emotion updates
+   */
+  onEmotionUpdate(callback: EmotionCallback): () => void {
+    this.emotionCallbacks.push(callback);
+    return () => {
+      this.emotionCallbacks = this.emotionCallbacks.filter((cb) => cb !== callback);
+    };
+  }
+
+  /**
+   * Start polling for emotion updates from the MCP server
+   */
+  startEmotionPolling(): void {
+    if (this.emotionPollInterval) return;
+
+    // Reset emotion tracking when starting
+    invoke("reset_emotion_tracking").catch(console.error);
+
+    this.emotionPollInterval = window.setInterval(async () => {
+      try {
+        const result = await invoke<{
+          emotion: string;
+          duration: number;
+          timestamp: number;
+        } | null>("check_emotion_update");
+
+        if (result && EMOTIONS.includes(result.emotion as Emotion)) {
+          console.log("[AgentService] MCP emotion update:", result);
+          for (const callback of this.emotionCallbacks) {
+            callback(result.emotion as Emotion, result.duration);
+          }
+        }
+      } catch (e) {
+        // Silently ignore polling errors
+      }
+    }, 200); // Poll every 200ms
+  }
+
+  /**
+   * Stop polling for emotion updates
+   */
+  stopEmotionPolling(): void {
+    if (this.emotionPollInterval) {
+      clearInterval(this.emotionPollInterval);
+      this.emotionPollInterval = null;
+    }
   }
 }
 
