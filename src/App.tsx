@@ -1,16 +1,17 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { PhysicalPosition } from "@tauri-apps/api/dpi";
+import { listen } from "@tauri-apps/api/event";
 import Clawd from "./Clawd";
-import SpeechBubble from "./SpeechBubble";
-import ChatInput from "./ChatInput";
 import { useMascotState } from "./useMascotState";
 import { usePhysics } from "./usePhysics";
-import { useChatHistory } from "./useChatHistory";
 import type { Emotion } from "./emotions";
 
 const WINDOW_WIDTH = 160;
 const WINDOW_HEIGHT = 140;
+const CHAT_WIDTH = 220;
+const CHAT_HEIGHT = 280;
 
 function App() {
   const [isDragging, setIsDragging] = useState(false);
@@ -18,16 +19,9 @@ function App() {
   const [chatOpen, setChatOpen] = useState(false);
   const walkTimeoutRef = useRef<number | null>(null);
   const autoWalkRef = useRef<number | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatWindowRef = useRef<WebviewWindow | null>(null);
 
   const mascot = useMascotState();
-
-  // Callback to update mascot emotion based on agent activity
-  const handleEmotionChange = useCallback((emotion: Emotion) => {
-    mascot.setEmotion(emotion);
-  }, [mascot]);
-
-  const chat = useChatHistory({ onEmotionChange: handleEmotionChange });
 
   const handlePositionUpdate = useCallback(() => {
     // Position updated - could track for UI if needed
@@ -44,7 +38,6 @@ function App() {
   }, [mascot]);
 
   const handleEdgeHit = useCallback((edge: "left" | "right") => {
-    // Turn around when hitting an edge
     mascot.setDirection(edge === "left" ? "right" : "left");
   }, [mascot]);
 
@@ -66,36 +59,45 @@ function App() {
     };
   }, [physicsEnabled, chatOpen]);
 
-  // Handle physics when chat opens/closes (no window resize needed)
+  // Listen for emotion changes from chat window
   useEffect(() => {
-    if (chatOpen) {
-      physics.stopPhysics();
-    } else if (physicsEnabled) {
-      physics.startPhysics();
-    }
-  }, [chatOpen]);
+    const unlisten = listen<Emotion>("emotion-change", (event) => {
+      mascot.setEmotion(event.payload);
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [mascot]);
 
-  // Scroll to bottom when new messages arrive
+  // Listen for chat window closed
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chat.messages, chat.isTyping]);
+    const unlisten = listen("chat-closed", () => {
+      setChatOpen(false);
+      chatWindowRef.current = null;
+      mascot.setState("idle");
+      if (physicsEnabled) {
+        physics.startPhysics();
+      }
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [physicsEnabled, physics, mascot]);
 
-  // Auto-walk behavior: randomly start walking (disabled when chat is open)
+  // Auto-walk behavior
   useEffect(() => {
     if (chatOpen) return;
 
     const scheduleAutoWalk = () => {
-      const delay = 15000 + Math.random() * 30000; // 15-45 seconds
+      const delay = 15000 + Math.random() * 30000;
       autoWalkRef.current = window.setTimeout(() => {
         if (!isDragging && mascot.state === "idle" && mascot.isGrounded && !chatOpen) {
-          // 30% chance to start walking
           if (Math.random() > 0.7) {
             const direction = Math.random() > 0.5 ? "right" : "left";
             mascot.setDirection(direction);
             mascot.setState("walking");
             physics.startWalking(direction);
 
-            // Walk for 1-2 seconds
             const walkDuration = 1000 + Math.random() * 1000;
             walkTimeoutRef.current = window.setTimeout(() => {
               physics.stopWalking();
@@ -120,7 +122,6 @@ function App() {
     const handleMouseMove = async (e: MouseEvent) => {
       if (!isDragging) return;
 
-      // Check if moved enough to count as drag (more than 5 pixels)
       if (dragStartPos.current) {
         const dx = Math.abs(e.clientX - dragStartPos.current.x);
         const dy = Math.abs(e.clientY - dragStartPos.current.y);
@@ -144,17 +145,14 @@ function App() {
       setIsDragging(false);
       dragStartPos.current = null;
 
-      // If clicked on Clawd without dragging, don't restart physics
-      // The click handler will manage it (chat toggle)
       if (clickedOnClawd.current && !wasDragged.current) {
         clickedOnClawd.current = false;
         return;
       }
 
       clickedOnClawd.current = false;
-      // Re-sync physics position after drag
       await physics.syncPosition();
-      if (physicsEnabled) {
+      if (physicsEnabled && !chatOpen) {
         physics.startPhysics();
       }
     };
@@ -168,13 +166,12 @@ function App() {
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [isDragging, physics, physicsEnabled]);
+  }, [isDragging, physics, physicsEnabled, chatOpen]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
-    clickedOnClawd.current = false; // Background click, not Clawd
+    clickedOnClawd.current = false;
     setIsDragging(true);
-    // Stop physics while dragging
     physics.stopPhysics();
     physics.stopWalking();
     if (walkTimeoutRef.current) {
@@ -189,7 +186,6 @@ function App() {
 
   const handleClawdMouseDown = (e: React.MouseEvent) => {
     e.stopPropagation();
-    // Track start position to detect drag vs click
     dragStartPos.current = { x: e.clientX, y: e.clientY };
     wasDragged.current = false;
     clickedOnClawd.current = true;
@@ -202,13 +198,43 @@ function App() {
     mascot.setState("idle");
   };
 
+  const openChatWindow = async () => {
+    const appWindow = getCurrentWindow();
+    const position = await appWindow.outerPosition();
+    const factor = await appWindow.scaleFactor();
+
+    // Convert physical position to logical
+    const clawdX = position.x / factor;
+    const clawdY = position.y / factor;
+
+    // Position chat window to the right of Clawd
+    // Chat tail is on the left, pointing at Clawd
+    const chatX = clawdX + WINDOW_WIDTH - 5; // Right of Clawd, slight overlap for tail
+    const chatY = Math.max(0, clawdY - CHAT_HEIGHT + WINDOW_HEIGHT - 20); // Align tail with Clawd
+
+    const chatWindow = new WebviewWindow("chat", {
+      url: "index.html?chat=true",
+      title: "Chat",
+      width: CHAT_WIDTH,
+      height: CHAT_HEIGHT,
+      x: Math.round(chatX),
+      y: Math.round(chatY),
+      resizable: false,
+      decorations: false,
+      transparent: true,
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      shadow: false,
+    });
+
+    chatWindowRef.current = chatWindow;
+  };
+
   const handleClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
 
-    // Only toggle chat if it wasn't a drag
     if (wasDragged.current) {
       wasDragged.current = false;
-      // If it was a drag on Clawd, restart physics now
       await physics.syncPosition();
       if (physicsEnabled) {
         physics.startPhysics();
@@ -216,77 +242,44 @@ function App() {
       return;
     }
 
-    // Toggle chat mode
-    const wasOpen = chatOpen;
-    setChatOpen((prev) => !prev);
-    if (!wasOpen) {
-      // Opening chat - stop walking and enter talking state
-      physics.stopWalking();
-      mascot.setState("talking");
-      if (walkTimeoutRef.current) {
-        clearTimeout(walkTimeoutRef.current);
+    if (chatOpen) {
+      // Close chat window
+      if (chatWindowRef.current) {
+        await chatWindowRef.current.close();
+        chatWindowRef.current = null;
+      }
+      setChatOpen(false);
+      mascot.setState("idle");
+      if (physicsEnabled) {
+        physics.startPhysics();
       }
     } else {
-      // Closing chat - handled by useEffect (resize first, then physics)
-      mascot.setState("idle");
+      // Open chat window
+      physics.stopPhysics();
+      physics.stopWalking();
+      mascot.setState("talking");
+      setChatOpen(true);
+      await openChatWindow();
     }
   };
 
-  const handleSendMessage = (message: string) => {
-    chat.sendMessage(message);
-    // Note: mascot state is now managed by the agent hook via onEmotionChange
-  };
-
-  // Double-click to toggle physics
   const handleDoubleClick = () => {
     setPhysicsEnabled((prev) => !prev);
   };
 
   return (
     <div
-      className={`mascot-container ${chatOpen ? "chat-mode" : ""}`}
-      onMouseDown={chatOpen ? undefined : handleMouseDown}
-      onDoubleClick={chatOpen ? undefined : handleDoubleClick}
+      className="mascot-container"
+      onMouseDown={handleMouseDown}
+      onDoubleClick={handleDoubleClick}
     >
       <div className="clawd-wrapper">
-        {chatOpen && (
-          <div className="chat-container">
-            {/* Tool indicator when agent is using tools */}
-            {chat.streamingState?.currentToolName && (
-              <div className="tool-indicator">
-                Using: {chat.streamingState.currentToolName}
-              </div>
-            )}
-            <div className="chat-messages">
-              {chat.messages.map((msg) => (
-                <SpeechBubble
-                  key={msg.id}
-                  message={msg.content}
-                  sender={msg.sender}
-                  isStreaming={msg.isStreaming}
-                />
-              ))}
-              {chat.isTyping && !chat.messages.some(m => m.isStreaming) && (
-                <SpeechBubble message="" sender="clawd" isTyping />
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-            <div className="chat-input-row">
-              <ChatInput onSend={handleSendMessage} disabled={chat.isTyping} />
-              {chat.isTyping && (
-                <button className="interrupt-btn" onClick={chat.interrupt}>
-                  Stop
-                </button>
-              )}
-            </div>
-          </div>
-        )}
         <Clawd
           state={mascot.state}
           direction={mascot.direction}
           emotion={mascot.emotion}
           onClick={handleClick}
-          onMouseDown={chatOpen ? undefined : handleClawdMouseDown}
+          onMouseDown={handleClawdMouseDown}
         />
       </div>
     </div>

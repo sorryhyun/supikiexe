@@ -19,6 +19,7 @@ body,
   outline: none;
 }
 
+/* Main mascot container */
 .mascot-container {
   width: 100%;
   height: 100%;
@@ -34,21 +35,9 @@ body,
   cursor: grabbing;
 }
 
-/* Chat mode container adjustments */
-.mascot-container.chat-mode {
-  cursor: default;
-  position: relative;
-  overflow: visible; /* Allow chat bubble to overflow */
-}
-
-.mascot-container.chat-mode .clawd {
-  cursor: pointer;
-}
-
-/* Wrapper for Clawd and chat bubble */
+/* Clawd wrapper */
 .clawd-wrapper {
-  position: relative;
   display: flex;
-  flex-direction: column;
   align-items: center;
+  justify-content: center;
 }

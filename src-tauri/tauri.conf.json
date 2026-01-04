@@ -16,16 +16,14 @@
         "title": "Claude Mascot",
         "width": 160,
         "height": 140,
-        "resizable": true,
+        "resizable": false,
         "decorations": false,
         "transparent": true,
         "alwaysOnTop": true,
         "skipTaskbar": true,
         "shadow": false,
         "x": 100,
-        "y": 100,
-        "minWidth": 160,
-        "minHeight": 140
+        "y": 100
       }
     ],
     "security": {
