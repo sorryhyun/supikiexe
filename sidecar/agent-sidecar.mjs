@@ -13,13 +13,8 @@
  */
 
 import { createInterface } from "readline";
-import { query, tool, createSdkMcpServer } from "@anthropic-ai/claude-agent-sdk";
-import { z } from "zod";
-import { exec } from "child_process";
-import { promisify } from "util";
-import { hostname, platform, userInfo } from "os";
-
-const execAsync = promisify(exec);
+import { query, createSdkMcpServer } from "@anthropic-ai/claude-agent-sdk";
+import { createAllTools } from "./tools/index.mjs";
 
 // System prompt for Clawd personality
 const SYSTEM_PROMPT = `You are Clawd, a friendly and expressive desktop mascot. You're a cute capybara-like creature who lives on the user's desktop.
@@ -35,10 +30,12 @@ IMPORTANT: You have access to the set_emotion tool. Use it to express your feeli
 
 Call set_emotion at the START of your response to show your emotional reaction, and call it again if your emotion changes during the response.
 
-Keep your responses concise and friendly - you're a small desktop companion, not a lengthy assistant!`;
+VISUAL CAPABILITIES:
+- You can use capture_screenshot to see what's on the user's screen when they ask you to look at something
+- You can use read_clipboard to see what the user has copied (both text and images)
+- When users say things like "look at this", "what do you see", "check my screen", or "I copied something", proactively use these tools!
 
-// Valid emotions
-const VALID_EMOTIONS = ["neutral", "happy", "sad", "excited", "thinking", "confused", "surprised"];
+Keep your responses concise and friendly - you're a small desktop companion, not a lengthy assistant!`;
 
 // Current session ID
 let currentSessionId = null;
@@ -58,146 +55,13 @@ function log(...args) {
   process.stderr.write(`[Sidecar] ${args.join(" ")}\n`);
 }
 
-// ============================================================================
-// Tool Definitions using SDK's tool() helper
-// ============================================================================
-
-const setEmotionTool = tool(
-  "set_emotion",
-  "Set Clawd's emotional expression. Use this to show how you're feeling! Call this tool to change your visible emotion during the conversation.",
-  {
-    emotion: z.enum(VALID_EMOTIONS).describe(
-      "The emotion to display: neutral (default), happy (when pleased), sad (when apologizing or delivering bad news), excited (when celebrating success), thinking (when processing), confused (when uncertain), surprised (when something unexpected happens)"
-    ),
-    duration: z.number().optional().default(5000).describe(
-      "How long to show this emotion in milliseconds (default: 5000). After this duration, emotion returns to neutral."
-    ),
-  },
-  async ({ emotion, duration }) => {
-    // Emit emotion event directly to Rust via stdout
-    emit({ type: "emotion", emotion, duration: duration || 5000 });
-    return {
-      content: [{ type: "text", text: `Emotion set to: ${emotion} for ${duration || 5000}ms` }],
-    };
-  }
-);
-
-const getCurrentTimeTool = tool(
-  "get_current_time",
-  "Get the current date and time. Use this when the user asks about the current time, date, day of the week, or when you need to be aware of the current moment.",
-  {},
-  async () => {
-    const now = new Date();
-    const options = {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      timeZoneName: 'short'
-    };
-
-    const timeInfo = {
-      iso: now.toISOString(),
-      formatted: now.toLocaleString('en-US', options),
-      date: now.toLocaleDateString('en-US'),
-      time: now.toLocaleTimeString('en-US'),
-      timestamp: now.getTime(),
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      dayOfWeek: now.toLocaleDateString('en-US', { weekday: 'long' }),
-      hour: now.getHours(),
-      minute: now.getMinutes(),
-    };
-
-    return {
-      content: [{ type: "text", text: JSON.stringify(timeInfo, null, 2) }],
-    };
-  }
-);
-
-const getActiveWindowTool = tool(
-  "get_active_window",
-  "Get information about the currently focused/active window on the user's desktop. Returns the window title and process name. Use this to understand what the user is currently working on.",
-  {},
-  async () => {
-    if (platform() !== 'win32') {
-      return {
-        content: [{ type: "text", text: JSON.stringify({ error: "Active window detection only supported on Windows" }) }],
-      };
-    }
-
-    try {
-      const psScript = `
-        Add-Type @"
-          using System;
-          using System.Runtime.InteropServices;
-          using System.Text;
-          public class Win32 {
-            [DllImport("user32.dll")]
-            public static extern IntPtr GetForegroundWindow();
-            [DllImport("user32.dll")]
-            public static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
-            [DllImport("user32.dll")]
-            public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
-          }
-"@
-        $hwnd = [Win32]::GetForegroundWindow()
-        $sb = New-Object System.Text.StringBuilder 256
-        [void][Win32]::GetWindowText($hwnd, $sb, 256)
-        $processId = 0
-        [void][Win32]::GetWindowThreadProcessId($hwnd, [ref]$processId)
-        $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
-        @{
-          title = $sb.ToString()
-          processName = if ($process) { $process.ProcessName } else { "Unknown" }
-          processId = $processId
-        } | ConvertTo-Json
-      `;
-
-      const { stdout } = await execAsync(
-        `powershell -Command "${psScript.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`,
-        { timeout: 5000 }
-      );
-
-      return {
-        content: [{ type: "text", text: stdout.trim() }],
-      };
-    } catch (e) {
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({ error: "Failed to get active window", details: e.message })
-        }],
-      };
-    }
-  }
-);
-
-const getSystemInfoTool = tool(
-  "get_system_info",
-  "Get basic system information including hostname, platform, and current user. Use this when you need to know about the user's system environment.",
-  {},
-  async () => {
-    const user = userInfo();
-    const sysInfo = {
-      hostname: hostname(),
-      platform: platform(),
-      username: user.username,
-      homeDir: user.homedir,
-    };
-
-    return {
-      content: [{ type: "text", text: JSON.stringify(sysInfo, null, 2) }],
-    };
-  }
-);
+// Create all tools with dependencies
+const tools = createAllTools({ emit, log });
 
 // Create SDK MCP server with all tools
 const clawdMcpServer = createSdkMcpServer({
   name: "clawd-tools",
-  tools: [setEmotionTool, getCurrentTimeTool, getActiveWindowTool, getSystemInfoTool],
+  tools,
 });
 
 /**
