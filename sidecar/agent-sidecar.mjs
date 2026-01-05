@@ -2,8 +2,9 @@
 /**
  * Clawd Agent Sidecar
  *
- * Node.js sidecar process that uses the Claude Agent SDK to handle
- * conversations. Communicates with the Tauri Rust backend via stdio JSON-RPC.
+ * Node.js sidecar process that uses Claude to handle conversations.
+ * Tries npm @anthropic-ai/claude-code first, falls back to native claude binary.
+ * Communicates with the Tauri Rust backend via stdio JSON-RPC.
  *
  * Protocol:
  * - Rust → Sidecar (stdin):  { "type": "query", "prompt": "...", "sessionId": "..." }
@@ -13,7 +14,7 @@
  */
 
 import { createInterface } from "readline";
-import { query, createSdkMcpServer } from "@anthropic-ai/claude-agent-sdk";
+import { spawn } from "child_process";
 import { createAllTools } from "./tools/index.mjs";
 
 // System prompt for Clawd personality
@@ -40,6 +41,11 @@ Keep your responses concise and friendly - you're a small desktop companion, not
 // Current session ID
 let currentSessionId = null;
 
+// Which Claude implementation we're using
+let claudeImpl = null;
+let queryFn = null;
+let createSdkMcpServerFn = null;
+
 /**
  * Emit event to Rust via stdout
  * All stdout output must be valid JSON, one object per line
@@ -58,32 +64,76 @@ function log(...args) {
 // Create all tools with dependencies
 const tools = createAllTools({ emit, log });
 
-// Create SDK MCP server with all tools
-const clawdMcpServer = createSdkMcpServer({
-  name: "clawd-tools",
-  tools,
-});
+/**
+ * Try to initialize Claude from npm package first, then native binary
+ */
+async function initializeClaude() {
+  // Try @anthropic-ai/claude-code (npm) first
+  try {
+    const claudeCode = await import("@anthropic-ai/claude-code");
+    if (claudeCode.query) {
+      queryFn = claudeCode.query;
+      createSdkMcpServerFn = claudeCode.createSdkMcpServer;
+      claudeImpl = "npm";
+      log("Using npm @anthropic-ai/claude-code");
+      return true;
+    }
+  } catch (e) {
+    log(`npm @anthropic-ai/claude-code not available: ${e.message}`);
+  }
+
+  // Try @anthropic-ai/claude-agent-sdk as second option
+  try {
+    const agentSdk = await import("@anthropic-ai/claude-agent-sdk");
+    if (agentSdk.query) {
+      queryFn = agentSdk.query;
+      createSdkMcpServerFn = agentSdk.createSdkMcpServer;
+      claudeImpl = "agent-sdk";
+      log("Using npm @anthropic-ai/claude-agent-sdk");
+      return true;
+    }
+  } catch (e) {
+    log(`npm @anthropic-ai/claude-agent-sdk not available: ${e.message}`);
+  }
+
+  // Fallback to native claude binary
+  claudeImpl = "native";
+  log("Using native claude binary");
+  return true;
+}
+
+// MCP server instance (created after initialization)
+let clawdMcpServer = null;
 
 /**
- * Handle a query from Rust
- * Uses the Agent SDK to process the message and stream responses
+ * Handle a query using the SDK (npm package)
  */
-async function handleQuery({ prompt, sessionId }) {
-  log(`Handling query: "${prompt.substring(0, 50)}..."`);
+async function handleQueryWithSdk({ prompt, sessionId }) {
+  log(`Handling query with ${claudeImpl}: "${prompt.substring(0, 50)}..."`);
   log(`Session ID: ${sessionId || "new session"}`);
 
   try {
+    // Create MCP server if not exists (for SDK MCP tools)
+    if (!clawdMcpServer && createSdkMcpServerFn) {
+      clawdMcpServer = createSdkMcpServerFn({
+        name: "clawd-tools",
+        tools,
+      });
+      log(`Created MCP server: ${clawdMcpServer.name}`);
+    }
+
     // Build query options
     const options = {
       systemPrompt: SYSTEM_PROMPT,
       permissionMode: "bypassPermissions",
-      mcpServers: {
-        "clawd": {
-          type: "sdk",
-          instance: clawdMcpServer,
-        },
-      },
     };
+
+    // Add MCP server if available - pass directly, it already has { type, name, instance }
+    if (clawdMcpServer) {
+      options.mcpServers = {
+        "clawd": clawdMcpServer,
+      };
+    }
 
     // Resume session if provided
     if (sessionId) {
@@ -94,7 +144,7 @@ async function handleQuery({ prompt, sessionId }) {
     let newSessionId = sessionId;
 
     // Stream the query
-    for await (const message of query({ prompt, options })) {
+    for await (const message of queryFn({ prompt, options })) {
       log(`Message type: ${message.type}${message.subtype ? ` (${message.subtype})` : ""}`);
 
       // Capture session ID from init
@@ -138,6 +188,119 @@ async function handleQuery({ prompt, sessionId }) {
 }
 
 /**
+ * Handle a query using native claude binary
+ */
+async function handleQueryWithNative({ prompt, sessionId }) {
+  log(`Handling query with native claude: "${prompt.substring(0, 50)}..."`);
+  log(`Session ID: ${sessionId || "new session"}`);
+
+  try {
+    // Build command arguments
+    const args = [
+      "--print",
+      "--output-format", "stream-json",
+      "--system-prompt", SYSTEM_PROMPT,
+      "--permission-mode", "bypassPermissions",
+    ];
+
+    // Resume session if provided
+    if (sessionId) {
+      args.push("--resume", sessionId);
+    }
+
+    // Add the prompt
+    args.push(prompt);
+
+    // Use native claude binary (works with global npm install or native install)
+    const proc = spawn("claude", args, {
+      stdio: ["ignore", "pipe", "pipe"],
+      shell: true,
+    });
+
+    let fullText = "";
+    let newSessionId = sessionId;
+
+    // Read stdout line by line
+    const rl = createInterface({ input: proc.stdout });
+
+    rl.on("line", (line) => {
+      try {
+        const message = JSON.parse(line);
+        log(`Message type: ${message.type}${message.subtype ? ` (${message.subtype})` : ""}`);
+
+        // Capture session ID from init
+        if (message.type === "system" && message.subtype === "init") {
+          newSessionId = message.session_id;
+          log(`New session ID: ${newSessionId}`);
+        }
+
+        // Handle assistant messages (streaming text)
+        if (message.type === "assistant" && message.message?.content) {
+          for (const block of message.message.content) {
+            if (block.type === "text") {
+              fullText = block.text;
+              emit({ type: "stream", text: block.text });
+            }
+          }
+        }
+
+        // Handle result
+        if (message.type === "result") {
+          currentSessionId = newSessionId;
+          emit({
+            type: "result",
+            sessionId: newSessionId,
+            success: message.subtype === "success",
+            text: fullText,
+          });
+        }
+      } catch (e) {
+        // Not JSON, ignore
+      }
+    });
+
+    // Read stderr for logging
+    const stderrRl = createInterface({ input: proc.stderr });
+    stderrRl.on("line", (line) => {
+      log(`[claude] ${line}`);
+    });
+
+    // Wait for process to exit
+    await new Promise((resolve, reject) => {
+      proc.on("close", (code) => {
+        if (code === 0) {
+          resolve();
+        } else {
+          reject(new Error(`claude exited with code ${code}`));
+        }
+      });
+      proc.on("error", reject);
+    });
+
+    log("Query completed successfully");
+  } catch (error) {
+    log(`Error: ${error.message}`);
+    log(error.stack);
+    emit({
+      type: "error",
+      error: error.message,
+      sessionId: currentSessionId,
+    });
+  }
+}
+
+/**
+ * Handle a query from Rust - routes to appropriate implementation
+ */
+async function handleQuery(params) {
+  if (claudeImpl === "native") {
+    await handleQueryWithNative(params);
+  } else {
+    await handleQueryWithSdk(params);
+  }
+}
+
+/**
  * Handle incoming commands from Rust
  */
 async function handleCommand(line) {
@@ -172,17 +335,30 @@ async function handleCommand(line) {
   }
 }
 
-// Set up stdin listener
-const rl = createInterface({
-  input: process.stdin,
-  terminal: false,
+// Initialize and start
+async function main() {
+  log("Clawd Agent Sidecar starting...");
+
+  // Initialize Claude implementation
+  await initializeClaude();
+
+  // Set up stdin listener
+  const rl = createInterface({
+    input: process.stdin,
+    terminal: false,
+  });
+
+  rl.on("line", handleCommand);
+
+  // Keep process alive
+  process.stdin.resume();
+
+  // Signal ready
+  log(`Clawd Agent Sidecar started (using ${claudeImpl})`);
+  emit({ type: "ready", implementation: claudeImpl });
+}
+
+main().catch((err) => {
+  log(`Fatal error: ${err.message}`);
+  process.exit(1);
 });
-
-rl.on("line", handleCommand);
-
-// Keep process alive
-process.stdin.resume();
-
-// Signal ready
-log("Clawd Agent Sidecar started");
-emit({ type: "ready" });

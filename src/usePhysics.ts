@@ -14,6 +14,7 @@ interface ScreenBounds {
   height: number;
   left: number;
   top: number;
+  taskbarHeight: number;
 }
 
 interface PhysicsConfig {
@@ -65,12 +66,18 @@ export function usePhysics({
   const updateScreenBounds = useCallback(async () => {
     try {
       const monitor = await currentMonitor();
+      const appWindow = getCurrentWindow();
+      const scaleFactor = await appWindow.scaleFactor();
       if (monitor) {
+        // Windows taskbar is typically 40-48px in logical pixels
+        const TASKBAR_HEIGHT = 48;
+        // Convert physical pixels to logical pixels to match state coordinates
         screenBoundsRef.current = {
-          width: monitor.size.width,
-          height: monitor.size.height,
-          left: monitor.position.x,
-          top: monitor.position.y,
+          width: monitor.size.width / scaleFactor,
+          height: monitor.size.height / scaleFactor,
+          left: monitor.position.x / scaleFactor,
+          top: monitor.position.y / scaleFactor,
+          taskbarHeight: TASKBAR_HEIGHT,
         };
       }
     } catch (e) {
@@ -113,10 +120,15 @@ export function usePhysics({
     isWalkingRef.current = false;
   }, []);
 
+  // Track frames for periodic bounds update
+  const frameCountRef = useRef(0);
+
   const physicsStep = useCallback(async () => {
-    if (!screenBoundsRef.current) {
+    // Update screen bounds periodically (every 60 frames ~1 second) to handle monitor changes
+    frameCountRef.current++;
+    if (!screenBoundsRef.current || frameCountRef.current % 60 === 0) {
       await updateScreenBounds();
-      return;
+      if (!screenBoundsRef.current) return;
     }
 
     const bounds = screenBoundsRef.current;
@@ -143,8 +155,8 @@ export function usePhysics({
     state.x += state.velocityX;
     state.y += state.velocityY;
 
-    // Floor collision (bottom of screen)
-    const floorY = bounds.height - windowHeight;
+    // Floor collision (bottom of screen, accounting for monitor position and taskbar)
+    const floorY = bounds.top + bounds.height - windowHeight - bounds.taskbarHeight;
     if (state.y >= floorY) {
       state.y = floorY;
       if (state.velocityY > 0) {
@@ -157,10 +169,11 @@ export function usePhysics({
       }
     }
 
-    // Wall collisions (screen edges)
-    const rightEdge = bounds.width - windowWidth;
-    if (state.x <= bounds.left) {
-      state.x = bounds.left;
+    // Wall collisions (screen edges, accounting for monitor position)
+    const leftEdge = bounds.left;
+    const rightEdge = bounds.left + bounds.width - windowWidth;
+    if (state.x <= leftEdge) {
+      state.x = leftEdge;
       state.velocityX = Math.abs(state.velocityX) * physicsConfig.bounceFactor;
       onEdgeHit("left");
     } else if (state.x >= rightEdge) {

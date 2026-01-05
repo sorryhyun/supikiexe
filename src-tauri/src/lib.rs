@@ -44,7 +44,15 @@ fn get_sidecar_path() -> Option<PathBuf> {
 
         for path in possible_paths {
             if path.exists() {
-                return Some(path.canonicalize().unwrap_or(path));
+                // Canonicalize but strip Windows \\?\ prefix which Node.js doesn't handle
+                if let Ok(canonical) = path.canonicalize() {
+                    let path_str = canonical.to_string_lossy();
+                    if path_str.starts_with(r"\\?\") {
+                        return Some(PathBuf::from(&path_str[4..]));
+                    }
+                    return Some(canonical);
+                }
+                return Some(path);
             }
         }
     }
