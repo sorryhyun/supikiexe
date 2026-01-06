@@ -394,13 +394,10 @@ pub fn run() {
             // Only hide main window to tray - let other windows close normally
             if let WindowEvent::CloseRequested { api, .. } = event {
                 let label = window.label();
-                println!("[Rust] Window '{}' close requested", label);
                 if label == "main" {
                     println!("[Rust] Hiding main window to tray");
                     let _ = window.hide();
                     api.prevent_close();
-                } else {
-                    println!("[Rust] Allowing '{}' window to close", label);
                 }
             }
         })

@@ -4,26 +4,28 @@ import { invoke } from "@tauri-apps/api/core";
 import { emit } from "@tauri-apps/api/event";
 
 function ContextMenuWindow() {
+  // Close when losing focus (clicking outside)
   useEffect(() => {
-    const handleBlur = async () => {
-      const win = getCurrentWindow();
-      await win.close();
-    };
+    const win = getCurrentWindow();
 
     const handleKeyDown = async (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        const win = getCurrentWindow();
         await win.close();
       }
     };
 
-    // Close on blur (clicking outside)
-    window.addEventListener("blur", handleBlur);
+    // Close when window loses focus
+    const unlisten = win.onFocusChanged(async ({ payload: focused }) => {
+      if (!focused) {
+        await win.close();
+      }
+    });
+
     document.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      window.removeEventListener("blur", handleBlur);
       document.removeEventListener("keydown", handleKeyDown);
+      unlisten.then((fn) => fn());
     };
   }, []);
 

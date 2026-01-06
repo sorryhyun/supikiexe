@@ -237,6 +237,26 @@ function App() {
     };
   }, [physics, mascot]);
 
+  // Close context menu when main window gains focus
+  useEffect(() => {
+    const appWindow = getCurrentWindow();
+    const unlisten = appWindow.onFocusChanged(async ({ payload: focused }) => {
+      if (focused) {
+        try {
+          const existingMenu = await WebviewWindow.getByLabel("contextmenu");
+          if (existingMenu) {
+            await existingMenu.close();
+          }
+        } catch {
+          // Context menu may already be closing
+        }
+      }
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, []);
+
   // Auto-walk behavior
   useEffect(() => {
     if (chatOpen) return;
@@ -321,8 +341,18 @@ function App() {
     };
   }, [isDragging, physics, physicsEnabled, chatOpen]);
 
-  const handleMouseDown = (e: React.MouseEvent) => {
+  // Helper to close context menu from main window
+  const closeContextMenu = async () => {
+    const existingMenu = await WebviewWindow.getByLabel("contextmenu");
+    if (existingMenu) {
+      await existingMenu.close();
+    }
+  };
+
+  const handleMouseDown = async (e: React.MouseEvent) => {
     e.preventDefault();
+    // Close context menu when clicking anywhere on main window
+    await closeContextMenu();
     clickedOnClawd.current = false;
     setIsDragging(true);
     physics.stopPhysics();
@@ -337,8 +367,10 @@ function App() {
   const wasDragged = useRef(false);
   const clickedOnClawd = useRef(false);
 
-  const handleClawdMouseDown = (e: React.MouseEvent) => {
+  const handleClawdMouseDown = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    // Close context menu when clicking on Clawd
+    await closeContextMenu();
     dragStartPos.current = { x: e.clientX, y: e.clientY };
     wasDragged.current = false;
     clickedOnClawd.current = true;
@@ -511,6 +543,11 @@ function App() {
       skipTaskbar: true,
       shadow: false,
       focus: true,
+    });
+
+    // Explicitly set focus after window is created so onFocusChanged works
+    menuWindow.once("tauri://created", async () => {
+      await menuWindow.setFocus();
     });
 
     menuWindow.once("tauri://error", (e) => {
