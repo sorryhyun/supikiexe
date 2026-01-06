@@ -10,7 +10,7 @@ interface MascotStateManager {
   emotion: Emotion;
   setState: (state: MascotState) => void;
   setDirection: (dir: Direction) => void;
-  setEmotion: (emotion: Emotion) => void;
+  setEmotion: (emotion: Emotion, duration?: number) => void;
   triggerJump: () => void;
   triggerTalk: () => void;
   isGrounded: boolean;

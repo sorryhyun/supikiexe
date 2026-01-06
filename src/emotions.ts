@@ -9,7 +9,8 @@ export type Emotion =
   | "excited"
   | "thinking"
   | "confused"
-  | "surprised";
+  | "surprised"
+  | "curious";
 
 export const EMOTIONS: Emotion[] = [
   "neutral",
@@ -18,7 +19,8 @@ export const EMOTIONS: Emotion[] = [
   "excited",
   "thinking",
   "confused",
-  "surprised"
+  "surprised",
+  "curious"
 ];
 
 /**
@@ -93,5 +95,10 @@ export const EMOTION_CONFIG: Record<Emotion, EyeConfig> = {
     // Very wide eyes
     leftEye: { y: 3, height: 4, width: 3 },
     rightEye: { y: 3, height: 4, width: 3 },
+  },
+  curious: {
+    // Same as neutral - no eye changes
+    leftEye: { y: 4, height: 2 },
+    rightEye: { y: 4, height: 2 },
   },
 };

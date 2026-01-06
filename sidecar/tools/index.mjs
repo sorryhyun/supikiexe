@@ -10,6 +10,7 @@ import { getActiveWindowTool } from './window.mjs';
 import { getSystemInfoTool } from './system.mjs';
 import { createScreenshotTool } from './screenshot.mjs';
 import { createClipboardTool } from './clipboard.mjs';
+import { createInvestigateWindowTool } from './investigateWindow.mjs';
 
 // Re-export for external use
 export { createEmotionTool, VALID_EMOTIONS };
@@ -18,6 +19,7 @@ export { getActiveWindowTool };
 export { getSystemInfoTool };
 export { createScreenshotTool };
 export { createClipboardTool };
+export { createInvestigateWindowTool };
 
 /**
  * Create all tools with the required dependencies
@@ -34,5 +36,6 @@ export function createAllTools({ emit, log }) {
     getSystemInfoTool,
     createScreenshotTool(log),
     createClipboardTool(log),
+    createInvestigateWindowTool(emit),
   ];
 }

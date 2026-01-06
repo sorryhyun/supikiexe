@@ -48,6 +48,15 @@ public class Win32 {
   public static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
   [DllImport("user32.dll")]
   public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+  [DllImport("user32.dll")]
+  public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+  [StructLayout(LayoutKind.Sequential)]
+  public struct RECT {
+    public int Left;
+    public int Top;
+    public int Right;
+    public int Bottom;
+  }
 }
 "@
 $hwnd = [Win32]::GetForegroundWindow()
@@ -56,10 +65,16 @@ $sb = New-Object System.Text.StringBuilder 256
 $processId = 0
 [void][Win32]::GetWindowThreadProcessId($hwnd, [ref]$processId)
 $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
+$rect = New-Object Win32+RECT
+[void][Win32]::GetWindowRect($hwnd, [ref]$rect)
 @{
   title = $sb.ToString()
   processName = if ($process) { $process.ProcessName } else { "Unknown" }
   processId = $processId
+  x = $rect.Left
+  y = $rect.Top
+  width = $rect.Right - $rect.Left
+  height = $rect.Bottom - $rect.Top
 } | ConvertTo-Json
 `;
 

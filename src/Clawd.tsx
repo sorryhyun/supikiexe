@@ -43,7 +43,7 @@ function Clawd({ state, direction, emotion = "neutral", onClick, onMouseDown, on
       onMouseDown={onMouseDown}
       onDoubleClick={onDoubleClick}
       style={{
-        transform: direction === "left" ? "scaleX(-1)" : "scaleX(1)",
+        transform: `${direction === "left" ? "scaleX(-1)" : "scaleX(1)"} ${emotion === "curious" ? "rotate(-10deg)" : ""}`,
       }}
     >
       <g className="clawd-body">
@@ -145,6 +145,13 @@ function Clawd({ state, direction, emotion = "neutral", onClick, onMouseDown, on
       {emotion === "excited" && (
         <g className="excited-indicator">
           <polygon points="20,0 20.3,0.8 21.2,0.8 20.5,1.3 20.7,2.1 20,1.6 19.3,2.1 19.5,1.3 18.8,0.8 19.7,0.8" fill="#FFD700" />
+        </g>
+      )}
+
+      {/* Curious question mark */}
+      {emotion === "curious" && (
+        <g className="curious-indicator">
+          <text x="19" y="2" fontSize="3" fill="#4A90D9" fontWeight="bold">?</text>
         </g>
       )}
     </svg>

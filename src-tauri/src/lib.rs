@@ -170,6 +170,10 @@ fn ensure_sidecar_running(app: tauri::AppHandle) -> Result<(), String> {
                             // Emit emotion event directly - no file polling needed!
                             let _ = app_handle.emit("agent-emotion", &json);
                         }
+                        "walk_to_window" => {
+                            // Emit walk-to-window event for frontend
+                            let _ = app_handle.emit("walk-to-window", &json);
+                        }
                         "result" => {
                             // Update cached session ID and persist to disk
                             if let Some(sid) = json.get("sessionId").and_then(|s| s.as_str()) {
