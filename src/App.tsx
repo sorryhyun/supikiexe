@@ -177,6 +177,7 @@ function App() {
     const scheduleAutoWalk = () => {
       const delay = 15000 + Math.random() * 30000;
       autoWalkRef.current = window.setTimeout(() => {
+        // Check conditions at execution time, not capture time
         if (!isDragging && mascot.state === "idle" && mascot.isGrounded && !chatOpen) {
           if (Math.random() > 0.7) {
             const direction = Math.random() > 0.5 ? "right" : "left";
@@ -184,7 +185,7 @@ function App() {
             mascot.setState("walking");
             physics.startWalking(direction);
 
-            const walkDuration = 500;
+            const walkDuration = 700;
             walkTimeoutRef.current = window.setTimeout(() => {
               physics.stopWalking();
               mascot.setState("idle");
@@ -199,9 +200,9 @@ function App() {
 
     return () => {
       if (autoWalkRef.current) clearTimeout(autoWalkRef.current);
-      if (walkTimeoutRef.current) clearTimeout(walkTimeoutRef.current);
+      // Don't clear walkTimeoutRef here - let it complete
     };
-  }, [isDragging, mascot.state, mascot.isGrounded, chatOpen]);
+  }, [chatOpen, isDragging]);
 
   // Drag handling
   useEffect(() => {
