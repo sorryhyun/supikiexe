@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { getAgentService } from "../services/agentService";
 import { detectEmotion } from "../services/emotionMapper";
+import { sessionStorage } from "../services/sessionStorage";
 import type {
   AgentChatMessage,
   StreamingState,
@@ -8,15 +9,15 @@ import type {
   Emotion,
 } from "../services/agentTypes";
 
-const STORAGE_KEY = "clawd-chat-history";
 const MAX_MESSAGES = 100;
 
 interface UseAgentChatOptions {
   onEmotionChange?: (emotion: Emotion) => void;
+  sessionId?: string; // Optional: load specific session for viewing history
 }
 
 export function useAgentChat(options: UseAgentChatOptions = {}) {
-  const { onEmotionChange } = options;
+  const { onEmotionChange, sessionId: viewSessionId } = options;
 
   const [messages, setMessages] = useState<AgentChatMessage[]>([]);
   const [streamingState, setStreamingState] = useState<StreamingState>({
@@ -25,6 +26,7 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
     toolsInUse: [],
   });
   const [error, setError] = useState<Error | null>(null);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
 
   const agentService = useRef(getAgentService());
   const streamingMessageId = useRef<string | null>(null);
@@ -41,29 +43,30 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
     return unsubscribe;
   }, [onEmotionChange]);
 
-  // Load from localStorage on mount
+  // Initialize session on mount
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          setMessages(parsed);
-        }
+    if (viewSessionId) {
+      // Load specific session for viewing
+      const session = sessionStorage.getSession(viewSessionId);
+      if (session) {
+        setMessages(session.messages);
+        setCurrentSessionId(session.id);
       }
-    } catch (e) {
-      console.error("Failed to load chat history:", e);
+    } else {
+      // Create new session for current chat
+      const session = sessionStorage.createSession();
+      setCurrentSessionId(session.id);
+      setMessages([]);
     }
-  }, []);
+  }, [viewSessionId]);
 
-  // Save to localStorage whenever messages change
+  // Save to session storage whenever messages change
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
-    } catch (e) {
-      console.error("Failed to save chat history:", e);
+    if (currentSessionId && messages.length > 0 && !viewSessionId) {
+      const claudeSessionId = messages.find((m) => m.sessionId)?.sessionId;
+      sessionStorage.updateSession(currentSessionId, messages, claudeSessionId);
     }
-  }, [messages]);
+  }, [messages, currentSessionId, viewSessionId]);
 
   const addMessage = useCallback(
     (
@@ -234,7 +237,9 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
   const clearHistory = useCallback(() => {
     setMessages([]);
     agentService.current.clearSession();
-    localStorage.removeItem(STORAGE_KEY);
+    // Create a new session after clearing
+    const session = sessionStorage.createSession();
+    setCurrentSessionId(session.id);
   }, []);
 
   return {
@@ -245,5 +250,9 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
     interrupt,
     clearHistory,
     isTyping: streamingState.isStreaming,
+    currentSessionId,
   };
 }
+
+// Export session storage for history list
+export { sessionStorage };

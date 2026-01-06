@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect } from "react";
+import { useRef, useCallback, useEffect, useMemo } from "react";
 import { getCurrentWindow, currentMonitor } from "@tauri-apps/api/window";
 import { PhysicalPosition } from "@tauri-apps/api/dpi";
 import {
@@ -49,7 +49,10 @@ export function usePhysics({
   onEdgeHit,
   config = {},
 }: UsePhysicsOptions) {
-  const physicsConfig = { ...DEFAULT_PHYSICS_CONFIG, ...config };
+  const physicsConfig = useMemo(
+    () => ({ ...DEFAULT_PHYSICS_CONFIG, ...config }),
+    [config]
+  );
   const stateRef = useRef<PhysicsState>({
     x: 100,
     y: 100,

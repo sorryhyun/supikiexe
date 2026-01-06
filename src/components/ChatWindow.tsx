@@ -9,12 +9,22 @@ import type { Emotion } from "../emotions";
 function ChatWindow() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Check if viewing a past session (read-only mode)
+  const urlParams = new URLSearchParams(window.location.search);
+  const viewSessionId = urlParams.get("viewSession");
+  const isViewMode = !!viewSessionId;
+
   const handleEmotionChange = (emotion: Emotion) => {
-    // Send emotion to main window
-    emit("emotion-change", emotion);
+    // Send emotion to main window (only in active chat mode)
+    if (!isViewMode) {
+      emit("emotion-change", emotion);
+    }
   };
 
-  const chat = useChatHistory({ onEmotionChange: handleEmotionChange });
+  const chat = useChatHistory({
+    onEmotionChange: handleEmotionChange,
+    sessionId: viewSessionId || undefined,
+  });
 
   // Listen for hide request from main window
   useEffect(() => {
@@ -111,47 +121,57 @@ function ChatWindow() {
   return (
     <div className="chat-window" onMouseDown={handleDragStart}>
       <div className="chat-window-header" onMouseDown={handleDragStart}>
-        <span className="chat-window-title">Chat with Clawd</span>
+        <span className="chat-window-title">
+          {isViewMode ? "Chat History" : "Chat with Clawd"}
+        </span>
         <button
           className="chat-window-close"
           onClick={async () => {
-            emit("chat-closed");
+            if (!isViewMode) {
+              emit("chat-closed");
+            }
             const appWindow = getCurrentWindow();
-            await appWindow.hide();
+            await appWindow.close();
           }}
         >
-          ×
+          x
         </button>
       </div>
       <div className="chat-window-body">
         {/* Tool indicator when agent is using tools */}
-        {chat.streamingState?.currentToolName && (
+        {!isViewMode && chat.streamingState?.currentToolName && (
           <div className="tool-indicator">
             Using: {chat.streamingState.currentToolName}
           </div>
         )}
         <div className="chat-messages" onMouseDown={handleDragStart}>
-          {chat.messages.map((msg) => (
-            <SpeechBubble
-              key={msg.id}
-              message={msg.content}
-              sender={msg.sender}
-              isStreaming={msg.isStreaming}
-            />
-          ))}
-          {chat.isTyping && !chat.messages.some((m) => m.isStreaming) && (
+          {chat.messages.length === 0 && isViewMode ? (
+            <div className="history-list-empty">No messages in this session</div>
+          ) : (
+            chat.messages.map((msg) => (
+              <SpeechBubble
+                key={msg.id}
+                message={msg.content}
+                sender={msg.sender}
+                isStreaming={msg.isStreaming}
+              />
+            ))
+          )}
+          {!isViewMode && chat.isTyping && !chat.messages.some((m) => m.isStreaming) && (
             <SpeechBubble message="" sender="clawd" isTyping />
           )}
           <div ref={messagesEndRef} />
         </div>
-        <div className="chat-input-row">
-          <ChatInput onSend={chat.sendMessage} disabled={chat.isTyping} />
-          {chat.isTyping && (
-            <button className="interrupt-btn" onClick={chat.interrupt}>
-              Stop
-            </button>
-          )}
-        </div>
+        {!isViewMode && (
+          <div className="chat-input-row">
+            <ChatInput onSend={chat.sendMessage} disabled={chat.isTyping} />
+            {chat.isTyping && (
+              <button className="interrupt-btn" onClick={chat.interrupt}>
+                Stop
+              </button>
+            )}
+          </div>
+        )}
       </div>
       {/* Speech bubble tail pointing to Clawd */}
       <div className="chat-window-tail"></div>

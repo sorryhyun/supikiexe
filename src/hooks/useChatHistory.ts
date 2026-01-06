@@ -10,6 +10,7 @@ export type { StreamingState };
 
 interface UseChatHistoryOptions {
   onEmotionChange?: (emotion: Emotion) => void;
+  sessionId?: string; // Optional: load specific session for viewing history
 }
 
 /**

@@ -12,7 +12,9 @@
     "icons": "node scripts/generate-icons.mjs",
     "vite": "vite",
     "vite:build": "tsc && vite build",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.1.76",
@@ -24,13 +26,19 @@
     "zod": "^4.3.4"
   },
   "devDependencies": {
+    "@eslint/js": "^9.17.0",
     "@tauri-apps/cli": "^2.0.0",
-    "cross-env": "^7.0.3",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
+    "@typescript-eslint/eslint-plugin": "^8.19.0",
+    "@typescript-eslint/parser": "^8.19.0",
     "@vitejs/plugin-react": "^4.3.0",
     "@yao-pkg/pkg": "^6.11.0",
+    "cross-env": "^7.0.3",
     "esbuild": "^0.27.2",
+    "eslint": "^9.17.0",
+    "eslint-plugin-react": "^7.37.3",
+    "eslint-plugin-react-hooks": "^5.1.0",
     "png-to-ico": "^3.0.1",
     "sharp": "^0.34.5",
     "typescript": "^5.5.0",

@@ -1,4 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import Clawd from "./Clawd";
 import { useMascotState } from "../hooks/useMascotState";
 import { usePhysics } from "../hooks/usePhysics";
@@ -7,7 +9,7 @@ import { useDrag } from "../hooks/useDrag";
 import { useAutoWalk } from "../hooks/useAutoWalk";
 import { useClawdEvents } from "../hooks/useClawdEvents";
 import { useContextMenu } from "../hooks/useContextMenu";
-import { WINDOW_WIDTH, WINDOW_HEIGHT } from "../constants";
+import { WINDOW_WIDTH, WINDOW_HEIGHT, CHAT_WIDTH, CHAT_HEIGHT } from "../constants";
 
 function App() {
   const [physicsEnabled, setPhysicsEnabled] = useState(true);
@@ -138,6 +140,36 @@ function App() {
         physics.stopPhysics();
         physics.stopWalking();
         await chatWindow.open();
+      },
+      onOpenSession: async (sessionId: string) => {
+        // Close existing session viewer if open
+        const existing = await WebviewWindow.getByLabel("session-viewer");
+        if (existing) {
+          await existing.close();
+        }
+
+        // Get position near Clawd
+        const appWindow = getCurrentWindow();
+        const position = await appWindow.outerPosition();
+        const factor = await appWindow.scaleFactor();
+        const clawdX = position.x / factor;
+        const clawdY = position.y / factor;
+
+        // Open session viewer window
+        new WebviewWindow("session-viewer", {
+          url: `index.html?chat=true&viewSession=${sessionId}`,
+          title: "Chat History",
+          width: CHAT_WIDTH,
+          height: CHAT_HEIGHT,
+          x: Math.round(clawdX + WINDOW_WIDTH - 5),
+          y: Math.round(clawdY - CHAT_HEIGHT + WINDOW_HEIGHT - 20),
+          resizable: false,
+          decorations: false,
+          transparent: true,
+          alwaysOnTop: true,
+          skipTaskbar: true,
+          shadow: false,
+        });
       },
     }),
     [mascot, physics, chatWindow, physicsEnabled]

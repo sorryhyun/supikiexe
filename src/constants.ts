@@ -9,6 +9,8 @@ export const CHAT_WIDTH = 280;
 export const CHAT_HEIGHT = 280;
 export const CONTEXT_MENU_WIDTH = 80;
 export const CONTEXT_MENU_HEIGHT = 60;
+export const HISTORY_LIST_WIDTH = 280;
+export const HISTORY_LIST_HEIGHT = 350;
 
 // Chat window positioning relative to Clawd
 export const DEFAULT_CHAT_OFFSET = {

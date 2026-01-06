@@ -11,7 +11,8 @@
       "Bash(node clawd-server.mjs:*)",
       "Bash(node:*)",
       "Bash(timeout 3 node:*)",
-      "Bash(powershell -Command \"Add-Type -AssemblyName System.Windows.Forms; Add-Type -AssemblyName System.Drawing; Write-Output ''Assemblies loaded successfully''\")"
+      "Bash(powershell -Command \"Add-Type -AssemblyName System.Windows.Forms; Add-Type -AssemblyName System.Drawing; Write-Output ''Assemblies loaded successfully''\")",
+      "Bash(npm run lint:*)"
     ]
   }
 }

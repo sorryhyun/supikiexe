@@ -47,5 +47,16 @@ export interface EmotionContext {
   hasError: boolean;
 }
 
+// Saved chat session (for history)
+export interface ChatSession {
+  id: string;
+  sessionId?: string; // Claude session ID
+  title: string; // First user message or generated title
+  createdAt: number;
+  updatedAt: number;
+  messages: AgentChatMessage[];
+  messageCount: number;
+}
+
 // Re-export types for convenience
 export type { MascotState, Emotion };

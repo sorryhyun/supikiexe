@@ -38,23 +38,6 @@ fn save_session_to_disk(session_id: &str) {
     }
 }
 
-/// Load session ID from disk
-fn load_session_from_disk() -> Option<String> {
-    let path = get_session_file_path()?;
-    match fs::read_to_string(&path) {
-        Ok(content) => {
-            let session = content.trim().to_string();
-            if !session.is_empty() {
-                println!("[Rust] Loaded session from disk: {}", session);
-                Some(session)
-            } else {
-                None
-            }
-        }
-        Err(_) => None,
-    }
-}
-
 /// Sidecar mode: bundled exe or Node.js script
 enum SidecarMode {
     /// Bundled standalone executable (production)
@@ -383,10 +366,9 @@ pub fn run() {
             is_dev_mode
         ])
         .setup(|app| {
-            // Load persisted session ID from disk
-            if let Some(session_id) = load_session_from_disk() {
-                *SESSION_ID.lock().unwrap() = Some(session_id);
-            }
+            // Start with fresh session on each launch
+            // (Don't load persisted session - each launch is a new conversation)
+            // Note: Sessions are still saved for chat history feature
 
             // Create tray menu
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;

@@ -1,7 +1,8 @@
 import { useEffect } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { invoke } from "@tauri-apps/api/core";
-import { emitTo } from "@tauri-apps/api/event";
+import { HISTORY_LIST_WIDTH, HISTORY_LIST_HEIGHT } from "../constants";
 
 function ContextMenuWindow() {
   // Close when losing focus (clicking outside)
@@ -38,9 +39,33 @@ function ContextMenuWindow() {
   }, []);
 
   const handleChatHistory = async () => {
-    // Emit to main window (not current context menu window)
-    await emitTo("main", "open-chat-history");
     const win = getCurrentWindow();
+    const pos = await win.outerPosition();
+    const factor = await win.scaleFactor();
+
+    // Close any existing history list window
+    const existing = await WebviewWindow.getByLabel("historylist");
+    if (existing) {
+      await existing.close();
+    }
+
+    // Open the history list window near the context menu
+    new WebviewWindow("historylist", {
+      url: "index.html?historylist=true",
+      title: "Chat History",
+      width: HISTORY_LIST_WIDTH,
+      height: HISTORY_LIST_HEIGHT,
+      x: Math.round(pos.x / factor),
+      y: Math.round(pos.y / factor - HISTORY_LIST_HEIGHT + 60),
+      resizable: false,
+      decorations: false,
+      transparent: true,
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      shadow: false,
+      focus: true,
+    });
+
     await win.close();
   };
 

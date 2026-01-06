@@ -12,6 +12,7 @@ export interface ClawdEventHandlers {
   onChatClosed: () => void;
   onChatMoved: (chatX: number, chatY: number) => void;
   onOpenChatHistory: () => void;
+  onOpenSession: (sessionId: string) => void;
 }
 
 export interface ClawdEventDeps {
@@ -118,6 +119,16 @@ export function useClawdEvents(
   useEffect(() => {
     const unlisten = listen("open-chat-history", () => {
       handlers.onOpenChatHistory();
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [handlers]);
+
+  // Listen for open-session event from history list
+  useEffect(() => {
+    const unlisten = listen<{ sessionId: string }>("open-session", (event) => {
+      handlers.onOpenSession(event.payload.sessionId);
     });
     return () => {
       unlisten.then((fn) => fn());
