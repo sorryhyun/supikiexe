@@ -70,6 +70,33 @@ function App() {
     };
   }, [mascot]);
 
+  // Listen for walk-to-window events from sidecar
+  useEffect(() => {
+    const unlisten = listen<{ targetX: number; windowTitle: string }>("walk-to-window", (event) => {
+      const { targetX } = event.payload;
+      console.log("[App] walk-to-window event, targetX:", targetX);
+
+      // Don't walk if chat is open or dragging
+      if (chatOpen || isDragging) return;
+
+      // Determine direction based on target
+      const currentX = physics.getState().x;
+      const direction = targetX > currentX ? "right" : "left";
+      mascot.setDirection(direction);
+      mascot.setState("walking");
+
+      // Walk to target, then show curious emotion
+      physics.walkToX(targetX, () => {
+        mascot.setState("idle");
+        mascot.setDirection(physics.getDirection());
+        mascot.setEmotion("curious", 5000);
+      });
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [chatOpen, isDragging, mascot, physics]);
+
   // Listen for chat window closed (by focus loss or X button)
   useEffect(() => {
     const unlisten = listen("chat-closed", () => {
@@ -100,7 +127,7 @@ function App() {
             mascot.setState("walking");
             physics.startWalking(direction);
 
-            const walkDuration = 1000 + Math.random() * 1000;
+            const walkDuration = 500;
             walkTimeoutRef.current = window.setTimeout(() => {
               physics.stopWalking();
               mascot.setState("idle");

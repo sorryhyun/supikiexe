@@ -62,6 +62,8 @@ export function usePhysics({
   const isRunningRef = useRef(false);
   const isWalkingRef = useRef(false);
   const walkDirectionRef = useRef<"left" | "right">("right");
+  const walkTargetXRef = useRef<number | null>(null);
+  const onReachTargetRef = useRef<(() => void) | null>(null);
 
   const updateScreenBounds = useCallback(async () => {
     try {
@@ -118,6 +120,17 @@ export function usePhysics({
 
   const stopWalking = useCallback(() => {
     isWalkingRef.current = false;
+    walkTargetXRef.current = null;
+    onReachTargetRef.current = null;
+  }, []);
+
+  const walkToX = useCallback((targetX: number, onReach?: () => void) => {
+    const currentX = stateRef.current.x;
+    const direction = targetX > currentX ? "right" : "left";
+    walkTargetXRef.current = targetX;
+    onReachTargetRef.current = onReach || null;
+    isWalkingRef.current = true;
+    walkDirectionRef.current = direction;
   }, []);
 
   // Track frames for periodic bounds update
@@ -143,6 +156,23 @@ export function usePhysics({
         ? physicsConfig.walkSpeed
         : -physicsConfig.walkSpeed;
       state.velocityX = walkVel;
+
+      // Check if we reached the target position
+      if (walkTargetXRef.current !== null) {
+        const targetX = walkTargetXRef.current;
+        const reachedTarget =
+          (walkDirectionRef.current === "right" && state.x >= targetX) ||
+          (walkDirectionRef.current === "left" && state.x <= targetX);
+
+        if (reachedTarget) {
+          isWalkingRef.current = false;
+          state.velocityX = 0;
+          const callback = onReachTargetRef.current;
+          walkTargetXRef.current = null;
+          onReachTargetRef.current = null;
+          if (callback) callback();
+        }
+      }
     } else {
       // Apply friction when not walking
       state.velocityX *= physicsConfig.friction;
@@ -248,8 +278,10 @@ export function usePhysics({
     applyForce,
     startWalking,
     stopWalking,
+    walkToX,
     syncPosition,
     updateScreenBounds,
     getState: () => stateRef.current,
+    getDirection: () => walkDirectionRef.current,
   };
 }
