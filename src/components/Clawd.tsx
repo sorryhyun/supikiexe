@@ -34,23 +34,33 @@ function Clawd({ state, direction, emotion: emotionProp = "neutral", onClick, on
   const rightEye = emotionConfig.rightEye;
   const eyebrows = emotionConfig.eyebrows;
 
+  const isRotated = emotion === "curious";
+
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 22 16"
       width="110"
       height="80"
-      shapeRendering="crispEdges"
+      shapeRendering={isRotated ? "auto" : "crispEdges"}
       className={`clawd ${getAnimationClass()} clawd-emotion-${emotion}`}
       onClick={onClick}
       onMouseDown={onMouseDown}
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
       style={{
-        transform: `${direction === "left" ? "scaleX(-1)" : "scaleX(1)"} ${emotion === "curious" ? "rotate(-10deg)" : ""}`,
+        transform: `${direction === "left" ? "scaleX(-1)" : "scaleX(1)"} ${isRotated ? "rotate(-10deg)" : ""}`,
       }}
     >
       <g className="clawd-body">
+        {/* When rotated, use a background path to prevent AA gaps at seams */}
+        {isRotated && (
+          <path
+            d="M2,0 H20 V4 H22 V8 H20 V12 H2 V8 H0 V4 H2 Z"
+            fill="#BD825D"
+          />
+        )}
+
         {/* Body top */}
         <rect x="2" y="0" width="18" height="4" fill="#BD825D" />
 

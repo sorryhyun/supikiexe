@@ -28,7 +28,7 @@ export function useChatWindow(
       const factor = await appWindow.scaleFactor();
 
       const chatX = x + chatOffsetRef.current.x;
-      const chatY = Math.max(0, y + chatOffsetRef.current.y);
+      const chatY = y + chatOffsetRef.current.y;
 
       try {
         await chatWindowRef.current.setPosition(
@@ -62,7 +62,7 @@ export function useChatWindow(
     const clawdY = position.y / factor;
 
     const chatX = clawdX + chatOffsetRef.current.x;
-    const chatY = Math.max(0, clawdY + chatOffsetRef.current.y);
+    const chatY = clawdY + chatOffsetRef.current.y;
 
     // Try to get existing chat window first
     const existingWindow = await WebviewWindow.getByLabel("chat");

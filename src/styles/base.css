@@ -47,14 +47,14 @@ body,
   background: #2d2d2d;
   border: 1px solid #444;
   border-radius: 6px;
-  padding: 4px 0;
+  padding: 2px 0;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .context-menu-item {
   display: block;
   width: 100%;
-  padding: 8px 16px;
+  padding: 4px 12px;
   background: none;
   border: none;
   color: #e0e0e0;
@@ -79,5 +79,5 @@ body,
 .context-menu-divider {
   height: 1px;
   background: #444;
-  margin: 4px 0;
+  margin: 2px 0;
 }
