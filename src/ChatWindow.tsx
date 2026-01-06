@@ -60,6 +60,37 @@ function ChatWindow() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chat.messages, chat.isTyping]);
 
+  // Track whether user initiated a drag
+  const userInitiatedDragRef = useRef(false);
+
+  // Listen for window moved events and notify main window of new position
+  useEffect(() => {
+    const appWindow = getCurrentWindow();
+    let moveDebounceTimeout: number | null = null;
+
+    const unlistenMove = appWindow.onMoved(async ({ payload: position }) => {
+      // Only process moves that were user-initiated
+      if (!userInitiatedDragRef.current) return;
+
+      // Debounce: only emit after moves stop for a bit
+      if (moveDebounceTimeout) clearTimeout(moveDebounceTimeout);
+      moveDebounceTimeout = window.setTimeout(async () => {
+        const factor = await appWindow.scaleFactor();
+        const logicalX = position.x / factor;
+        const logicalY = position.y / factor;
+        console.log("[ChatWindow] Emitting chat-window-moved:", { chatX: logicalX, chatY: logicalY });
+        emit("chat-window-moved", { chatX: logicalX, chatY: logicalY });
+        // Reset after emitting the final position
+        userInitiatedDragRef.current = false;
+      }, 50);
+    });
+
+    return () => {
+      if (moveDebounceTimeout) clearTimeout(moveDebounceTimeout);
+      unlistenMove.then((fn) => fn());
+    };
+  }, []);
+
   // Enable window dragging - exclude input elements and buttons
   const handleDragStart = async (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -71,6 +102,9 @@ function ChatWindow() {
     }
 
     const appWindow = getCurrentWindow();
+
+    // Mark that user initiated this drag
+    userInitiatedDragRef.current = true;
     await appWindow.startDragging();
   };
 

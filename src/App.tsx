@@ -13,6 +13,12 @@ const WINDOW_HEIGHT = 140;
 const CHAT_WIDTH = 220;
 const CHAT_HEIGHT = 280;
 
+// Default offset for chat window relative to Clawd
+const DEFAULT_CHAT_OFFSET = {
+  x: WINDOW_WIDTH - 5,
+  y: -CHAT_HEIGHT + WINDOW_HEIGHT - 20,
+};
+
 function App() {
   const [isDragging, setIsDragging] = useState(false);
   const [physicsEnabled, setPhysicsEnabled] = useState(true);
@@ -21,11 +27,28 @@ function App() {
   const autoWalkRef = useRef<number | null>(null);
   const chatWindowRef = useRef<WebviewWindow | null>(null);
   const chatOpenRef = useRef(false); // Sync ref to track chat state
+  const chatOffsetRef = useRef({ ...DEFAULT_CHAT_OFFSET }); // Relative offset from Clawd
 
   const mascot = useMascotState();
 
-  const handlePositionUpdate = useCallback(() => {
-    // Position updated - could track for UI if needed
+  const handlePositionUpdate = useCallback(async (x: number, y: number) => {
+    // Update chat window position relative to Clawd when Clawd moves
+    if (chatOpenRef.current && chatWindowRef.current) {
+      const appWindow = getCurrentWindow();
+      const factor = await appWindow.scaleFactor();
+
+      const chatX = x + chatOffsetRef.current.x;
+      const chatY = Math.max(0, y + chatOffsetRef.current.y);
+
+      try {
+        await chatWindowRef.current.setPosition(new PhysicalPosition(
+          Math.round(chatX * factor),
+          Math.round(chatY * factor)
+        ));
+      } catch (err) {
+        // Chat window may have been closed
+      }
+    }
   }, []);
 
   const handleGrounded = useCallback((grounded: boolean) => {
@@ -170,6 +193,30 @@ function App() {
     };
   }, [physicsEnabled, physics, mascot]);
 
+  // Listen for chat window moved (user drag) and update relative offset
+  useEffect(() => {
+    const unlisten = listen("chat-window-moved", async (event) => {
+      const { chatX, chatY } = event.payload as { chatX: number; chatY: number };
+
+      // Get Clawd's current position directly from window
+      const appWindow = getCurrentWindow();
+      const position = await appWindow.outerPosition();
+      const factor = await appWindow.scaleFactor();
+      const clawdX = position.x / factor;
+      const clawdY = position.y / factor;
+
+      // Calculate new offset relative to Clawd's current position
+      chatOffsetRef.current = {
+        x: chatX - clawdX,
+        y: chatY - clawdY,
+      };
+      console.log("[App] Chat offset updated:", chatOffsetRef.current);
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, []);
+
   // Auto-walk behavior
   useEffect(() => {
     if (chatOpen) return;
@@ -185,7 +232,7 @@ function App() {
             mascot.setState("walking");
             physics.startWalking(direction);
 
-            const walkDuration = 700;
+            const walkDuration = 1500;
             walkTimeoutRef.current = window.setTimeout(() => {
               physics.stopWalking();
               mascot.setState("idle");
@@ -294,9 +341,10 @@ function App() {
     const clawdX = position.x / factor;
     const clawdY = position.y / factor;
 
-    // Position chat window to the right of Clawd
-    const chatX = clawdX + WINDOW_WIDTH - 5;
-    const chatY = Math.max(0, clawdY - CHAT_HEIGHT + WINDOW_HEIGHT - 20);
+    // Position chat window using stored relative offset
+    const chatX = clawdX + chatOffsetRef.current.x;
+    const chatY = Math.max(0, clawdY + chatOffsetRef.current.y);
+    console.log("[App] Opening chat at offset:", chatOffsetRef.current, "-> position:", { chatX, chatY });
 
     // Try to get existing chat window first
     const existingWindow = await WebviewWindow.getByLabel("chat");
