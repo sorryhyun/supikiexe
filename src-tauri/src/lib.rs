@@ -52,13 +52,34 @@ fn load_session_from_disk() -> Option<String> {
     }
 }
 
-/// Get the sidecar script path
-fn get_sidecar_path() -> Option<PathBuf> {
+/// Sidecar mode: bundled exe or Node.js script
+enum SidecarMode {
+    /// Bundled standalone executable (production)
+    BundledExe(PathBuf),
+    /// Node.js script (development)
+    NodeScript(PathBuf),
+}
+
+/// Get the sidecar path and mode
+fn get_sidecar_mode() -> Option<SidecarMode> {
     if let Ok(exe_path) = std::env::current_exe() {
         let exe_dir = exe_path.parent()?;
 
-        // Try various paths for development and production
-        let possible_paths = vec![
+        // First, try to find bundled exe (production mode)
+        let bundled_exe_paths = vec![
+            exe_dir.join("agent-sidecar.exe"),
+            exe_dir.join("sidecar").join("agent-sidecar.exe"),
+        ];
+
+        for path in bundled_exe_paths {
+            if path.exists() {
+                println!("[Rust] Found bundled sidecar exe: {:?}", path);
+                return Some(SidecarMode::BundledExe(path));
+            }
+        }
+
+        // Fall back to Node.js script (development mode)
+        let script_paths = vec![
             exe_dir.join("sidecar").join("agent-sidecar.mjs"),
             exe_dir
                 .join("..")
@@ -76,17 +97,17 @@ fn get_sidecar_path() -> Option<PathBuf> {
             PathBuf::from("sidecar").join("agent-sidecar.mjs"),
         ];
 
-        for path in possible_paths {
+        for path in script_paths {
             if path.exists() {
                 // Canonicalize but strip Windows \\?\ prefix which Node.js doesn't handle
                 if let Ok(canonical) = path.canonicalize() {
                     let path_str = canonical.to_string_lossy();
                     if path_str.starts_with(r"\\?\") {
-                        return Some(PathBuf::from(&path_str[4..]));
+                        return Some(SidecarMode::NodeScript(PathBuf::from(&path_str[4..])));
                     }
-                    return Some(canonical);
+                    return Some(SidecarMode::NodeScript(canonical));
                 }
-                return Some(path);
+                return Some(SidecarMode::NodeScript(path));
             }
         }
     }
@@ -112,21 +133,35 @@ fn ensure_sidecar_running(app: tauri::AppHandle) -> Result<(), String> {
     }
 
     // Spawn new sidecar
-    let sidecar_path = get_sidecar_path().ok_or("Could not find sidecar script")?;
-    println!("[Rust] Starting sidecar: {:?}", sidecar_path);
+    let sidecar_mode = get_sidecar_mode().ok_or("Could not find sidecar (exe or script)")?;
 
-    let mut cmd = Command::new("node");
-    cmd.arg(&sidecar_path)
-        .stdin(Stdio::piped())
+    let mut cmd = match &sidecar_mode {
+        SidecarMode::BundledExe(exe_path) => {
+            println!("[Rust] Starting bundled sidecar exe: {:?}", exe_path);
+            let mut c = Command::new(exe_path);
+            // Set working directory to exe location for prompt.txt
+            if let Some(exe_dir) = exe_path.parent() {
+                c.current_dir(exe_dir);
+            }
+            c
+        }
+        SidecarMode::NodeScript(script_path) => {
+            println!("[Rust] Starting sidecar via Node.js: {:?}", script_path);
+            let mut c = Command::new("node");
+            c.arg(script_path);
+            // Set working directory to project root for module resolution
+            if let Some(parent) = script_path.parent() {
+                if let Some(project_root) = parent.parent() {
+                    c.current_dir(project_root);
+                }
+            }
+            c
+        }
+    };
+
+    cmd.stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-
-    // Set working directory to project root for module resolution
-    if let Some(parent) = sidecar_path.parent() {
-        if let Some(project_root) = parent.parent() {
-            cmd.current_dir(project_root);
-        }
-    }
 
     let mut child = cmd
         .spawn()

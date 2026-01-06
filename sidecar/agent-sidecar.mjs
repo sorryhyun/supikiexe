@@ -13,15 +13,39 @@
  */
 
 import { createInterface } from "readline";
-import { readFileSync } from "fs";
+import { readFileSync, existsSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import { createAllTools } from "./tools/index.mjs";
 
 // Load system prompt from file
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const SYSTEM_PROMPT = readFileSync(join(__dirname, "prompt.txt"), "utf-8").trim();
+// Works for both ESM (import.meta.url) and bundled exe (process.execPath)
+function getPromptPath() {
+  // Try import.meta.url first (ESM mode)
+  try {
+    if (import.meta.url) {
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = dirname(__filename);
+      const path = join(__dirname, "prompt.txt");
+      if (existsSync(path)) return path;
+    }
+  } catch (e) {
+    // Not in ESM mode
+  }
+
+  // For pkg bundled exe: prompt.txt is next to the exe or in snapshot
+  const exeDir = dirname(process.execPath);
+  const exePath = join(exeDir, "prompt.txt");
+  if (existsSync(exePath)) return exePath;
+
+  // Fallback for pkg snapshot filesystem
+  const snapshotPath = join(process.cwd(), "prompt.txt");
+  if (existsSync(snapshotPath)) return snapshotPath;
+
+  throw new Error("Could not find prompt.txt");
+}
+
+const SYSTEM_PROMPT = readFileSync(getPromptPath(), "utf-8").trim();
 
 // Current session ID
 let currentSessionId = null;
