@@ -55,6 +55,13 @@ async function bundle() {
     console.log("  Copied: dev-prompt.txt");
   }
 
+  // Copy supiki prompt if it exists
+  const supikiPromptPath = join(rootDir, "sidecar/supiki_prompt.txt");
+  if (existsSync(supikiPromptPath)) {
+    copyFileSync(supikiPromptPath, join(outDir, "supiki_prompt.txt"));
+    console.log("  Copied: supiki_prompt.txt");
+  }
+
   // Step 2: Compile with pkg
   console.log("\nStep 2: Compiling with pkg...");
 
@@ -62,6 +69,9 @@ async function bundle() {
   const assets = [join(outDir, "prompt.txt")];
   if (existsSync(join(outDir, "dev-prompt.txt"))) {
     assets.push(join(outDir, "dev-prompt.txt"));
+  }
+  if (existsSync(join(outDir, "supiki_prompt.txt"))) {
+    assets.push(join(outDir, "supiki_prompt.txt"));
   }
   const assetsArg = assets.map(a => `"${a}"`).join(",");
 

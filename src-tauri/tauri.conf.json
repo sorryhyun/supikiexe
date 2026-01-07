@@ -42,7 +42,8 @@
     ],
     "resources": [
       "../sidecar-dist/agent-sidecar.exe",
-      "../sidecar-dist/prompt.txt"
+      "../sidecar-dist/prompt.txt",
+      "../sidecar-dist/supiki_prompt.txt"
     ]
   }
 }

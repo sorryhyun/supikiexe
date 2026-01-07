@@ -71,6 +71,7 @@ function copySidecarFiles(targetDir) {
     "agent-sidecar-dev.exe",
     "prompt.txt",
     "dev-prompt.txt",
+    "supiki_prompt.txt",
   ];
 
   console.log("\nCopying sidecar files for standalone exe usage...");

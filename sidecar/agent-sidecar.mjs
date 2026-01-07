@@ -27,6 +27,14 @@ function isDevMode() {
          process.argv.includes('--dev');
 }
 
+/**
+ * Check if running in supiki mode
+ */
+function isSupikiMode() {
+  return process.env.CLAWD_SUPIKI_MODE === '1' ||
+         process.argv.includes('--supiki');
+}
+
 // Load system prompt from file
 // Works for both ESM (import.meta.url) and bundled exe (process.execPath)
 function getPromptPath() {
@@ -54,7 +62,49 @@ function getPromptPath() {
   throw new Error("Could not find prompt.txt");
 }
 
-const SYSTEM_PROMPT = readFileSync(getPromptPath(), "utf-8").trim();
+const DEFAULT_SYSTEM_PROMPT = readFileSync(getPromptPath(), "utf-8").trim();
+
+// Load supiki prompt from file
+function getSupikiPromptPath() {
+  // Try import.meta.url first (ESM mode)
+  try {
+    if (import.meta.url) {
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = dirname(__filename);
+      const path = join(__dirname, "supiki_prompt.txt");
+      if (existsSync(path)) return path;
+    }
+  } catch (e) {
+    // Not in ESM mode
+  }
+
+  // For pkg bundled exe: supiki_prompt.txt is next to the exe or in snapshot
+  const exeDir = dirname(process.execPath);
+  const exePath = join(exeDir, "supiki_prompt.txt");
+  if (existsSync(exePath)) return exePath;
+
+  // Fallback for pkg snapshot filesystem
+  const snapshotPath = join(process.cwd(), "supiki_prompt.txt");
+  if (existsSync(snapshotPath)) return snapshotPath;
+
+  return null;
+}
+
+// Load supiki prompt if available
+const SUPIKI_PROMPT = (() => {
+  const path = getSupikiPromptPath();
+  if (path) {
+    try {
+      return readFileSync(path, "utf-8").trim();
+    } catch (e) {
+      return "";
+    }
+  }
+  return "";
+})();
+
+// Select system prompt based on mode
+const SYSTEM_PROMPT = isSupikiMode() && SUPIKI_PROMPT ? SUPIKI_PROMPT : DEFAULT_SYSTEM_PROMPT;
 
 // Load dev mode personality prompt (appended to Claude Code's system prompt)
 function getDevPromptPath() {
@@ -296,9 +346,11 @@ async function* createImagePromptGenerator(textPrompt, images) {
  */
 async function handleQuery({ prompt, sessionId, images }) {
   const devMode = isDevMode();
+  const supikiMode = isSupikiMode();
+  const modeString = devMode ? "DEV" : supikiMode ? "SUPIKI" : "MASCOT";
   log(`Handling query: "${prompt.substring(0, 50)}..."`);
   log(`Session ID: ${sessionId || "new session"}`);
-  log(`Mode: ${devMode ? "DEV" : "MASCOT"}`);
+  log(`Mode: ${modeString}`);
   log(`Images: ${images?.length || 0}`);
 
   try {
@@ -442,8 +494,10 @@ async function main() {
 
   // Signal ready
   const devMode = isDevMode();
-  log(`Clawd Agent Sidecar ready (${devMode ? "DEV" : "MASCOT"} mode)`);
-  emit({ type: "ready", mode: devMode ? "dev" : "mascot" });
+  const supikiMode = isSupikiMode();
+  const modeString = devMode ? "DEV" : supikiMode ? "SUPIKI" : "MASCOT";
+  log(`Clawd Agent Sidecar ready (${modeString} mode)`);
+  emit({ type: "ready", mode: modeString.toLowerCase() });
 }
 
 main().catch((err) => {

@@ -9,7 +9,7 @@ use std::thread;
 use tauri::Emitter;
 
 use crate::state::{
-    save_session_to_disk, DEV_MODE, SESSION_ID, SIDECAR_PROCESS, SIDECAR_STDIN,
+    save_session_to_disk, DEV_MODE, SESSION_ID, SIDECAR_PROCESS, SIDECAR_STDIN, SUPIKI_MODE,
 };
 
 /// Sidecar mode: bundled exe or Node.js script
@@ -26,9 +26,11 @@ pub fn get_sidecar_mode() -> Option<SidecarMode> {
         let exe_dir = exe_path.parent()?;
 
         // First, try to find bundled exe (production mode)
+        // Tauri extracts resources to a "resources" subdirectory on Windows
         let bundled_exe_paths = vec![
             exe_dir.join("agent-sidecar.exe"),
             exe_dir.join("sidecar").join("agent-sidecar.exe"),
+            exe_dir.join("resources").join("agent-sidecar.exe"), // Tauri bundled resources
         ];
 
         for path in bundled_exe_paths {
@@ -128,6 +130,13 @@ pub fn ensure_sidecar_running(app: tauri::AppHandle) -> Result<(), String> {
     if dev_mode {
         cmd.env("CLAWD_DEV_MODE", "1");
         println!("[Rust] Spawning sidecar in DEV mode");
+    }
+
+    // Pass supiki mode to sidecar via environment variable
+    let supiki_mode = *SUPIKI_MODE.lock().unwrap();
+    if supiki_mode {
+        cmd.env("CLAWD_SUPIKI_MODE", "1");
+        println!("[Rust] Spawning sidecar in SUPIKI mode");
     }
 
     let mut child = cmd
