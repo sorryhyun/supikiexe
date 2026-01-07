@@ -262,6 +262,7 @@ fn send_to_sidecar(cmd: &serde_json::Value) -> Result<(), String> {
 
 /// Send a message to Claude via the sidecar
 #[tauri::command]
+#[specta::specta]
 async fn send_agent_message(app: tauri::AppHandle, message: String) -> Result<(), String> {
     println!("[Rust] send_agent_message called with: {}", message);
 
@@ -285,6 +286,7 @@ async fn send_agent_message(app: tauri::AppHandle, message: String) -> Result<()
 
 /// Clear the current session
 #[tauri::command]
+#[specta::specta]
 fn clear_agent_session() -> Result<(), String> {
     *SESSION_ID.lock().unwrap() = None;
 
@@ -298,12 +300,14 @@ fn clear_agent_session() -> Result<(), String> {
 
 /// Get current session ID
 #[tauri::command]
+#[specta::specta]
 fn get_session_id() -> Option<String> {
     SESSION_ID.lock().unwrap().clone()
 }
 
 /// Stop the sidecar process
 #[tauri::command]
+#[specta::specta]
 fn stop_sidecar() {
     let mut process_guard = SIDECAR_PROCESS.lock().unwrap();
     if let Some(mut child) = process_guard.take() {
@@ -316,6 +320,7 @@ fn stop_sidecar() {
 
 /// Quit the application
 #[tauri::command]
+#[specta::specta]
 fn quit_app(app: tauri::AppHandle) {
     stop_sidecar();
 
@@ -329,12 +334,14 @@ fn quit_app(app: tauri::AppHandle) {
 
 /// Check if running in dev mode
 #[tauri::command]
+#[specta::specta]
 fn is_dev_mode() -> bool {
     *DEV_MODE.lock().unwrap()
 }
 
 /// Check if running in supiki mode
 #[tauri::command]
+#[specta::specta]
 fn is_supiki_mode() -> bool {
     *SUPIKI_MODE.lock().unwrap()
 }
@@ -368,9 +375,9 @@ pub fn run() {
         println!("[Rust] DEV mode enabled via CLAWD_DEV_MODE env var");
     }
 
-    tauri::Builder::default()
-        .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![
+    // Setup tauri-specta for type-safe commands
+    let builder = tauri_specta::Builder::<tauri::Wry>::new()
+        .commands(tauri_specta::collect_commands![
             send_agent_message,
             clear_agent_session,
             get_session_id,
@@ -378,7 +385,21 @@ pub fn run() {
             quit_app,
             is_dev_mode,
             is_supiki_mode
-        ])
+        ]);
+
+    // Export TypeScript bindings in debug builds
+    #[cfg(debug_assertions)]
+    builder
+        .export(
+            specta_typescript::Typescript::default()
+                .header("/* eslint-disable */\n// @ts-nocheck"),
+            "../src/bindings.ts",
+        )
+        .expect("Failed to export TypeScript bindings");
+
+    tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
+        .invoke_handler(builder.invoke_handler())
         .setup(|app| {
             // Start with fresh session on each launch
             // (Don't load persisted session - each launch is a new conversation)

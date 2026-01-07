@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
 import ReactDOM from "react-dom/client";
-import { invoke } from "@tauri-apps/api/core";
 import App from "./components/App";
 import SupikiApp from "./components/SupikiApp";
 import ChatWindow from "./components/ChatWindow";
 import ContextMenuWindow from "./components/ContextMenuWindow";
 import ChatHistoryListWindow from "./components/ChatHistoryListWindow";
+import { commands } from "./bindings";
 import "./styles/index.css";
 
 // Check window type from URL params
@@ -24,7 +24,8 @@ function RootComponent() {
   useEffect(() => {
     // Check Tauri command for supiki mode (exe name detection)
     if (!envSupikiMode) {
-      invoke<boolean>("is_supiki_mode")
+      commands
+        .isSupikiMode()
         .then((result) => {
           setSupikiMode(result);
           setLoaded(true);

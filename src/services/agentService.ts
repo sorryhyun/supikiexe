@@ -1,7 +1,7 @@
-import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { AgentQueryCallbacks, Emotion } from "./agentTypes";
 import { EMOTIONS } from "../emotions";
+import { commands } from "../bindings";
 
 // Emotion update callback type
 type EmotionCallback = (emotion: Emotion, duration: number) => void;
@@ -88,9 +88,10 @@ export class AgentService {
 
       console.log("[AgentService] Invoking send_agent_message...");
       // Invoke the Rust command (now async, returns immediately)
-      await invoke("send_agent_message", {
-        message: prompt,
-      });
+      const result = await commands.sendAgentMessage(prompt);
+      if (result.status === "error") {
+        throw new Error(result.error);
+      }
 
       console.log("[AgentService] Message sent to sidecar");
     } catch (error) {
@@ -115,11 +116,14 @@ export class AgentService {
   }
 
   async clearSession(): Promise<void> {
-    await invoke("clear_agent_session");
+    const result = await commands.clearAgentSession();
+    if (result.status === "error") {
+      throw new Error(result.error);
+    }
   }
 
   async getSessionId(): Promise<string | null> {
-    return await invoke<string | null>("get_session_id");
+    return await commands.getSessionId();
   }
 
   /**
@@ -138,7 +142,7 @@ export class AgentService {
    * Stop the sidecar process (call on app exit)
    */
   async stopSidecar(): Promise<void> {
-    await invoke("stop_sidecar");
+    await commands.stopSidecar();
   }
 }
 

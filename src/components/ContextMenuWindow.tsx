@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { invoke } from "@tauri-apps/api/core";
 import { HISTORY_LIST_WIDTH, HISTORY_LIST_HEIGHT } from "../constants";
+import { commands } from "../bindings";
 
 function ContextMenuWindow() {
   // Close when losing focus (clicking outside)
@@ -71,7 +71,7 @@ function ContextMenuWindow() {
 
   const handleExit = async () => {
     // Invoke quit first - app will exit before this returns
-    invoke("quit_app");
+    commands.quitApp();
   };
 
   return (

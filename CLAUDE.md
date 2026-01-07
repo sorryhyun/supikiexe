@@ -36,3 +36,23 @@ cd src-tauri && cargo check    # Type-check Rust code
 | `sidecar/` | Node.js AI agent - Claude SDK integration, MCP tools |
 
 See README.md in each directory for details.
+
+## Type-Safe IPC (tauri-specta)
+
+Commands between frontend and Rust are type-safe via [tauri-specta](https://github.com/specta-rs/tauri-specta).
+
+**Generated bindings**: `src/bindings.ts` (auto-generated, do not edit)
+
+**Usage in frontend**:
+```typescript
+import { commands } from "./bindings";
+
+await commands.sendAgentMessage("Hello");  // Type-checked!
+const sessionId = await commands.getSessionId();  // Returns string | null
+```
+
+**Adding a new command**:
+1. Add `#[tauri::command]` and `#[specta::specta]` to Rust function in `lib.rs`
+2. Register in `tauri_specta::collect_commands![...]`
+3. Run `npm run dev` to regenerate bindings
+4. Import from `./bindings` in frontend

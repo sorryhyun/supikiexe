@@ -64,3 +64,4 @@ npm run icons        # 아이콘 재생성
 - React + TypeScript
 - Vite
 - Claude Agent SDK
+- tauri-specta (type-safe IPC bindings)
