@@ -6,12 +6,14 @@
  * - claude_mascot_dev.exe (dev mode detection via exe name)
  * - claude-mascot-supiki.exe (supiki variant)
  *
- * Also copies sidecar files needed for standalone exe usage.
+ * Also copies sidecar files needed for standalone exe usage
+ * and creates resources.zip for easy distribution.
  */
 
-import { copyFileSync, existsSync, readdirSync } from "fs";
+import { copyFileSync, existsSync, readdirSync, mkdirSync, unlinkSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { execSync } from "child_process";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = join(__dirname, "..");
@@ -64,15 +66,15 @@ function copyInBundle() {
   }
 }
 
+const sidecarFiles = [
+  "agent-sidecar.cjs",
+  "prompt.txt",
+  "dev-prompt.txt",
+  "supiki_prompt.txt",
+];
+
 // Copy sidecar files to target directory for standalone exe usage
 function copySidecarFiles(targetDir) {
-  const sidecarFiles = [
-    "agent-sidecar.cjs",
-    "prompt.txt",
-    "dev-prompt.txt",
-    "supiki_prompt.txt",
-  ];
-
   console.log("\nCopying sidecar files for standalone exe usage...");
   console.log("Note: Node.js v18+ is required on the target machine.");
 
@@ -89,15 +91,59 @@ function copySidecarFiles(targetDir) {
   }
 }
 
+// Create resources.zip for easy distribution
+function createResourcesZip(targetDir) {
+  const resourcesDir = join(targetDir, "resources");
+  const zipPath = join(targetDir, "resources.zip");
+
+  console.log("\nCreating resources.zip for distribution...");
+
+  // Create resources directory
+  if (!existsSync(resourcesDir)) {
+    mkdirSync(resourcesDir, { recursive: true });
+  }
+
+  // Copy files to resources directory
+  for (const file of sidecarFiles) {
+    const srcPath = join(sidecarDistDir, file);
+    const destPath = join(resourcesDir, file);
+
+    if (existsSync(srcPath)) {
+      copyFileSync(srcPath, destPath);
+    }
+  }
+
+  try {
+    // Remove existing zip if present (using Node.js, not PowerShell)
+    if (existsSync(zipPath)) {
+      unlinkSync(zipPath);
+    }
+
+    // Use PowerShell to create zip - use -LiteralPath for proper path handling
+    execSync(
+      `powershell -NoProfile -Command "Compress-Archive -LiteralPath '${resourcesDir}' -DestinationPath '${zipPath}'"`,
+      { stdio: "inherit" }
+    );
+    console.log(`  Created: ${zipPath}`);
+    console.log(`\n  To distribute: copy the .exe and resources.zip together.`);
+    console.log(`  Users should extract resources.zip next to the .exe`);
+  } catch (err) {
+    console.log(`  Warning: Could not create zip file: ${err.message}`);
+    console.log(`  Resources are still available in: ${resourcesDir}`);
+  }
+}
+
 console.log("Creating dev and supiki executables...");
 
 if (findAndCopyExe(releaseDir)) {
   console.log("Executables created in release directory");
   copySidecarFiles(releaseDir);
+  createResourcesZip(releaseDir);
   copyInBundle();
 } else if (findAndCopyExe(debugDir)) {
   console.log("Executables created in debug directory");
   copySidecarFiles(debugDir);
+  createResourcesZip(debugDir);
 } else {
   console.log("No exe found to copy. Run 'npm run build' first.");
 }
