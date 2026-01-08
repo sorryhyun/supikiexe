@@ -7,7 +7,7 @@
 
 export const commands = {
 /**
- * Send a message to Claude via the sidecar
+ * Send a message to Claude via a fresh sidecar process
  */
 async sendAgentMessage(message: string, images: string[]) : Promise<Result<null, string>> {
     try {
@@ -35,7 +35,7 @@ async getSessionId() : Promise<string | null> {
     return await TAURI_INVOKE("get_session_id");
 },
 /**
- * Stop the sidecar process
+ * Cancel the current query (drops stdin, causing process to exit)
  */
 async stopSidecar() : Promise<void> {
     await TAURI_INVOKE("stop_sidecar");
