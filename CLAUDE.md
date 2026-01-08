@@ -17,9 +17,16 @@ Claude Mascot is a desktop mascot application featuring "Clawd" - an animated ch
 ```bash
 npm install          # Install dependencies
 npm run dev          # Run in development mode (Tauri + Vite)
+npm run dev:clawd    # Dev mode with CLAWD_DEV_MODE=1
+npm run dev-supiki   # Dev mode for Supiki mascot variant
 npm run build        # Build for production (bundles sidecar + Tauri build)
 npm run vite:build   # Build frontend only (TypeScript + Vite)
 npm run icons        # Regenerate icons from source image
+```
+
+```bash
+npm run lint         # Run ESLint on frontend
+npm run lint:fix     # Run ESLint with auto-fix
 ```
 
 ```bash
@@ -62,7 +69,35 @@ const sessionId = await commands.getSessionId();  // Returns string | null
 ```
 
 **Adding a new command**:
-1. Add `#[tauri::command]` and `#[specta::specta]` to Rust function in `lib.rs`
-2. Register in `tauri_specta::collect_commands![...]`
-3. Run `npm run dev` to regenerate bindings
+1. Add `#[tauri::command]` and `#[specta::specta]` to Rust function in `commands.rs`
+2. Register in `tauri_specta::collect_commands![...]` in `lib.rs`
+3. Run `npm run dev` to regenerate bindings (or `make codegen-tauri`)
 4. Import from `./bindings` in frontend
+
+## Sidecar IPC Protocol
+
+The Rust backend communicates with the Node.js sidecar via stdio JSON messages.
+
+**Inbound (Rust → Sidecar)**:
+```json
+{ "type": "query", "prompt": "...", "sessionId": "..." }
+```
+
+**Outbound (Sidecar → Rust)**:
+```json
+{ "type": "stream", "text": "..." }
+{ "type": "emotion", "emotion": "...", "duration": 3000 }
+{ "type": "move", "target": "left", "x": 100 }
+{ "type": "walk_to_window", "targetX": 500, "windowTitle": "..." }
+{ "type": "result", "sessionId": "...", "success": true }
+```
+
+## Sidecar Tools
+
+Tools available to the Claude agent (in `sidecar/tools/`):
+- `set_emotion` - Control Clawd's emotional expression
+- `move_to` - Walk Clawd to screen position
+- `capture_screenshot` - Capture screen as base64 PNG
+- `read_clipboard` - Read clipboard text/images
+- `get_active_window` - Get focused window info
+- `investigate_window` - Walk toward active window curiously
