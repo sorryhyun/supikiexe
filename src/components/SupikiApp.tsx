@@ -18,7 +18,7 @@ function SupikiApp() {
 
   const supiki = useAnimationState();
   const { openContextMenu, closeContextMenu } = useContextMenu();
-  const { playClickSound, playEmotionSound } = useSupikiSounds();
+  const { playEmotionSound } = useSupikiSounds();
 
   // Play sound when emotion changes
   useEffect(() => {
@@ -210,8 +210,7 @@ function SupikiApp() {
   const handleClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
 
-    // Play click sound
-    playClickSound();
+    // Note: Click sounds are handled by Supiki component (eu.wav on press, ue.wav on release)
 
     if (drag.wasDragged) {
       drag.resetDragState();

@@ -74,6 +74,12 @@ pub fn run() {
         println!("[Rust] DEV mode enabled via CLAWD_DEV_MODE env var");
     }
 
+    // Also check VITE_MASCOT_TYPE environment variable for supiki mode
+    if std::env::var("VITE_MASCOT_TYPE").unwrap_or_default() == "supiki" {
+        *SUPIKI_MODE.lock().unwrap() = true;
+        println!("[Rust] SUPIKI mode enabled via VITE_MASCOT_TYPE env var");
+    }
+
     // Setup tauri-specta for type-safe commands
     let builder = create_specta_builder();
 
