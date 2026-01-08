@@ -8,7 +8,10 @@ use std::process::Command;
 use tauri::Manager;
 
 use crate::sidecar::{run_query, send_to_current_query};
-use crate::state::{CURRENT_QUERY_STDIN, DEV_MODE, SESSION_ID, SUPIKI_MODE};
+use crate::state::{
+    CURRENT_QUERY_STDIN, DEV_MODE, MAX_RECENT_CWDS, RECENT_CWDS, SESSION_ID, SIDECAR_CWD,
+    SUPIKI_MODE,
+};
 
 /// Send a message to Claude via a fresh sidecar process
 #[tauri::command]
@@ -92,6 +95,78 @@ pub fn is_dev_mode() -> bool {
 #[specta::specta]
 pub fn is_supiki_mode() -> bool {
     *SUPIKI_MODE.lock().unwrap()
+}
+
+/// Set custom working directory for sidecar
+/// Also clears the session to start fresh with the new cwd
+#[tauri::command]
+#[specta::specta]
+pub fn set_sidecar_cwd(path: String) -> Result<(), String> {
+    // Validate path exists
+    if !std::path::Path::new(&path).is_dir() {
+        return Err(format!("Directory does not exist: {}", path));
+    }
+
+    // Add to recent cwds (if not already the most recent)
+    {
+        let mut recent = RECENT_CWDS.lock().unwrap();
+        // Remove if already in list
+        recent.retain(|p| p != &path);
+        // Add to front
+        recent.insert(0, path.clone());
+        // Trim to max size
+        if recent.len() > MAX_RECENT_CWDS {
+            recent.truncate(MAX_RECENT_CWDS);
+        }
+    }
+
+    // Set current cwd
+    *SIDECAR_CWD.lock().unwrap() = Some(path.clone());
+
+    // Clear session to start fresh with new cwd
+    *SESSION_ID.lock().unwrap() = None;
+
+    println!("[Rust] Sidecar CWD set to: {} (session cleared)", path);
+    Ok(())
+}
+
+/// Get current sidecar working directory (custom setting only)
+#[tauri::command]
+#[specta::specta]
+pub fn get_sidecar_cwd() -> Option<String> {
+    SIDECAR_CWD.lock().unwrap().clone()
+}
+
+/// Get actual working directory (custom if set, otherwise app's cwd)
+#[tauri::command]
+#[specta::specta]
+pub fn get_actual_cwd() -> String {
+    SIDECAR_CWD
+        .lock()
+        .unwrap()
+        .clone()
+        .unwrap_or_else(|| {
+            std::env::current_dir()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_else(|_| ".".to_string())
+        })
+}
+
+/// Open native folder picker dialog
+#[tauri::command]
+#[specta::specta]
+pub async fn pick_folder(app: tauri::AppHandle) -> Option<String> {
+    use tauri_plugin_dialog::DialogExt;
+
+    let result = app.dialog().file().blocking_pick_folder();
+    result.map(|path| path.to_string())
+}
+
+/// Get recent working directories
+#[tauri::command]
+#[specta::specta]
+pub fn get_recent_cwds() -> Vec<String> {
+    RECENT_CWDS.lock().unwrap().clone()
 }
 
 /// Answer an AskUserQuestion from the agent

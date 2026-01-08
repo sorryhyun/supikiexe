@@ -17,7 +17,8 @@
       "Bash(npm run test:*)",
       "Bash(cargo test:*)",
       "Bash(make test:*)",
-      "Bash(make codegen-tauri:*)"
+      "Bash(make codegen-tauri:*)",
+      "Bash(make codegen:*)"
     ]
   }
 }

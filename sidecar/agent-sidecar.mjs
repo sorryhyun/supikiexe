@@ -259,6 +259,8 @@ function buildMascotOptions(sessionId, mcpServer) {
  */
 function buildDevOptions(sessionId, mcpServer) {
   const cliPath = getCliPath();
+  // Use custom cwd from environment if set, otherwise fall back to process.cwd()
+  const workingDir = process.env.CLAWD_CWD || process.cwd();
   const options = {
     // Use Claude Code's system prompt with appended mascot personality
     systemPrompt: {
@@ -270,8 +272,8 @@ function buildDevOptions(sessionId, mcpServer) {
     settingSources: ['user', 'project', 'local'],
     // Use Claude Code's full toolset
     tools: { type: 'preset', preset: 'claude_code' },
-    // Use current working directory (user's project)
-    cwd: process.cwd(),
+    // Use custom working directory or current working directory
+    cwd: workingDir,
     // Permission handling
     permissionMode: "bypassPermissions",
     canUseTool: handleCanUseTool,

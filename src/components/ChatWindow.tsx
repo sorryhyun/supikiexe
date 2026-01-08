@@ -1,14 +1,16 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { emit, listen } from "@tauri-apps/api/event";
 import SpeechBubble from "./SpeechBubble";
 import ChatInput, { type AttachedImage } from "./ChatInput";
 import QuestionModal from "./QuestionModal";
+import CwdModal from "./CwdModal";
 import { useChatHistory } from "../hooks/useChatHistory";
 import type { Emotion } from "../emotion";
 
 function ChatWindow() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [showCwdModal, setShowCwdModal] = useState(false);
 
   // Check if viewing a past session (read-only mode)
   const urlParams = new URLSearchParams(window.location.search);
@@ -127,15 +129,26 @@ function ChatWindow() {
         </span>
         <div className="chat-window-buttons">
           {!isViewMode && (
-            <button
-              className="chat-window-refresh"
-              onClick={() => {
-                chat.clearHistory();
-              }}
-              title="Start new chat"
-            >
-              ↻
-            </button>
+            <>
+              {chat.isTyping && (
+                <button
+                  className="chat-window-stop"
+                  onClick={chat.interrupt}
+                  title="Stop"
+                >
+                  ■
+                </button>
+              )}
+              <button
+                className="chat-window-refresh"
+                onClick={() => {
+                  chat.clearHistory();
+                }}
+                title="Start new chat"
+              >
+                ↻
+              </button>
+            </>
           )}
           <button
             className="chat-window-close"
@@ -179,16 +192,15 @@ function ChatWindow() {
         {!isViewMode && (
           <div className="chat-input-row">
             <ChatInput
-                onSend={(msg: string, images?: AttachedImage[]) =>
-                  chat.sendMessage(msg, images)
-                }
-                disabled={chat.isTyping}
-              />
-            {chat.isTyping && (
-              <button className="interrupt-btn" onClick={chat.interrupt}>
-                Stop
-              </button>
-            )}
+              onSend={(msg: string, images?: AttachedImage[]) =>
+                chat.sendMessage(msg, images)
+              }
+              disabled={chat.isTyping}
+              onAnalyzeScreen={() =>
+                chat.sendMessage("Capture a screenshot and analyze the problem you see")
+              }
+              onDelegateClawd={() => setShowCwdModal(true)}
+            />
           </div>
         )}
       </div>
@@ -202,6 +214,17 @@ function ChatWindow() {
           questions={chat.pendingQuestion.questions}
           onSubmit={chat.answerQuestion}
           onCancel={chat.cancelQuestion}
+        />
+      )}
+
+      {/* CWD modal for delegating clawd */}
+      {!isViewMode && showCwdModal && (
+        <CwdModal
+          onClose={() => setShowCwdModal(false)}
+          onCwdChange={() => {
+            // Clear chat history when cwd changes
+            chat.clearHistory();
+          }}
         />
       )}
     </div>

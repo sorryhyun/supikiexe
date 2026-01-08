@@ -18,8 +18,9 @@ use tauri::{
 };
 
 use commands::{
-    answer_agent_question, clear_agent_session, get_session_id, is_dev_mode, is_supiki_mode,
-    open_image_in_viewer, quit_app, send_agent_message, stop_sidecar,
+    answer_agent_question, clear_agent_session, get_actual_cwd, get_recent_cwds, get_session_id,
+    get_sidecar_cwd, is_dev_mode, is_supiki_mode, open_image_in_viewer, pick_folder, quit_app,
+    send_agent_message, set_sidecar_cwd, stop_sidecar,
 };
 use state::{DEV_MODE, SUPIKI_MODE};
 
@@ -35,7 +36,12 @@ pub fn create_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         is_dev_mode,
         is_supiki_mode,
         answer_agent_question,
-        open_image_in_viewer
+        open_image_in_viewer,
+        set_sidecar_cwd,
+        get_sidecar_cwd,
+        get_actual_cwd,
+        get_recent_cwds,
+        pick_folder
     ])
 }
 
@@ -83,6 +89,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(builder.invoke_handler())
         .setup(|app| {
             // Start with fresh session on each launch

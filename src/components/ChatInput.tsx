@@ -11,16 +11,35 @@ export interface AttachedImage {
 interface ChatInputProps {
   onSend: (message: string, images?: AttachedImage[]) => void;
   disabled?: boolean;
+  onAnalyzeScreen?: () => void;
+  onDelegateClawd?: () => void;
 }
 
-function ChatInput({ onSend, disabled }: ChatInputProps) {
+function ChatInput({ onSend, disabled, onAnalyzeScreen, onDelegateClawd }: ChatInputProps) {
   const [value, setValue] = useState("");
   const [attachedImages, setAttachedImages] = useState<AttachedImage[]>([]);
+  const [showPlusMenu, setShowPlusMenu] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as HTMLElement)) {
+        setShowPlusMenu(false);
+      }
+    };
+    if (showPlusMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showPlusMenu]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,6 +103,16 @@ function ChatInput({ onSend, disabled }: ChatInputProps) {
     setAttachedImages((prev) => prev.filter((img) => img.id !== id));
   };
 
+  const handleAnalyzeScreen = () => {
+    setShowPlusMenu(false);
+    onAnalyzeScreen?.();
+  };
+
+  const handleDelegateClawd = () => {
+    setShowPlusMenu(false);
+    onDelegateClawd?.();
+  };
+
   return (
     <div className="chat-input-container">
       {attachedImages.length > 0 && (
@@ -109,6 +138,26 @@ function ChatInput({ onSend, disabled }: ChatInputProps) {
         </div>
       )}
       <form className="chat-input-form" onSubmit={handleSubmit}>
+        <div className="chat-plus-wrapper" ref={menuRef}>
+          <button
+            type="button"
+            className="chat-plus-btn"
+            onClick={() => setShowPlusMenu(!showPlusMenu)}
+            title="More actions"
+          >
+            +
+          </button>
+          {showPlusMenu && (
+            <div className="chat-plus-menu">
+              <button type="button" onClick={handleAnalyzeScreen}>
+                Analyze screen
+              </button>
+              <button type="button" onClick={handleDelegateClawd}>
+                Delegate clawd
+              </button>
+            </div>
+          )}
+        </div>
         <input
           ref={inputRef}
           type="text"

@@ -18,6 +18,15 @@ pub static DEV_MODE: Mutex<bool> = Mutex::new(false);
 /// Supiki mode flag (Supiki mascot instead of Clawd)
 pub static SUPIKI_MODE: Mutex<bool> = Mutex::new(false);
 
+/// Custom working directory for sidecar (for Claude Code operations)
+pub static SIDECAR_CWD: Mutex<Option<String>> = Mutex::new(None);
+
+/// Recent working directories (most recent first, max 5)
+pub static RECENT_CWDS: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
+/// Maximum number of recent cwds to store
+pub const MAX_RECENT_CWDS: usize = 5;
+
 /// Get the session file path for persistence
 pub fn get_session_file_path() -> Option<PathBuf> {
     dirs::data_local_dir().map(|d| d.join("claude-mascot").join("session.txt"))

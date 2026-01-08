@@ -81,6 +81,42 @@ async openImageInViewer(base64Data: string) : Promise<Result<null, string>> {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+/**
+ * Set custom working directory for sidecar
+ * Also clears the session to start fresh with the new cwd
+ */
+async setSidecarCwd(path: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_sidecar_cwd", { path }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Get current sidecar working directory (custom setting only)
+ */
+async getSidecarCwd() : Promise<string | null> {
+    return await TAURI_INVOKE("get_sidecar_cwd");
+},
+/**
+ * Get actual working directory (custom if set, otherwise app's cwd)
+ */
+async getActualCwd() : Promise<string> {
+    return await TAURI_INVOKE("get_actual_cwd");
+},
+/**
+ * Get recent working directories
+ */
+async getRecentCwds() : Promise<string[]> {
+    return await TAURI_INVOKE("get_recent_cwds");
+},
+/**
+ * Open native folder picker dialog
+ */
+async pickFolder() : Promise<string | null> {
+    return await TAURI_INVOKE("pick_folder");
 }
 }
 

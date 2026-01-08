@@ -10,7 +10,9 @@ use std::process::{Command, Stdio};
 use std::thread;
 use tauri::Emitter;
 
-use crate::state::{save_session_to_disk, CURRENT_QUERY_STDIN, DEV_MODE, SESSION_ID, SUPIKI_MODE};
+use crate::state::{
+    save_session_to_disk, CURRENT_QUERY_STDIN, DEV_MODE, SESSION_ID, SIDECAR_CWD, SUPIKI_MODE,
+};
 
 /// Find the sidecar script path
 /// Looks for agent-sidecar.cjs (bundled) or agent-sidecar.mjs (development)
@@ -127,6 +129,13 @@ pub fn run_query(app: tauri::AppHandle, cmd: serde_json::Value) -> Result<(), St
     if supiki_mode {
         node_cmd.env("CLAWD_SUPIKI_MODE", "1");
         println!("[Rust] Running in SUPIKI mode");
+    }
+
+    // Pass custom cwd via environment if set
+    let custom_cwd = SIDECAR_CWD.lock().unwrap().clone();
+    if let Some(ref cwd) = custom_cwd {
+        node_cmd.env("CLAWD_CWD", cwd);
+        println!("[Rust] Using custom CWD: {}", cwd);
     }
 
     // Spawn process
