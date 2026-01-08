@@ -83,14 +83,14 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 8px;
+  padding: 4px 4px;
   min-height: 0;
 }
 
 /* Speech bubble tail pointing toward Clawd (on the left) */
 .chat-window-tail {
   position: absolute;
-  left: -10px;
+  left: -12px;
   bottom: 20px;
   width: 0;
   height: 0;
@@ -195,8 +195,8 @@
 /* Chat Input */
 .chat-input-form {
   display: flex;
-  gap: 6px;
-  padding: 6px;
+  gap: 4px;
+  padding: 4px;
   background: #ffffff;
   border-radius: 10px;
   border: 2px solid #e0e0e0;
@@ -208,7 +208,7 @@
   border: none;
   outline: none;
   font-size: 12px;
-  padding: 4px 8px;
+  padding: 4px 6px;
   background: transparent;
   color: #333;
   min-width: 0;
@@ -376,6 +376,8 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  flex: 1;
+  min-width: 0;
 }
 
 .attached-images {
@@ -497,4 +499,57 @@
 
 .chat-plus-menu button:hover {
   background: rgba(189, 130, 93, 0.15);
+}
+
+/* Markdown styles */
+.inline-code {
+  background: rgba(0, 0, 0, 0.08);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-family: "Consolas", "Monaco", monospace;
+  font-size: 11px;
+}
+
+.speech-bubble-user .inline-code {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.markdown-link {
+  color: #0066cc;
+  text-decoration: underline;
+}
+
+.speech-bubble-user .markdown-link {
+  color: #cce5ff;
+}
+
+.markdown-list-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 2px 0;
+}
+
+.markdown-bullet,
+.markdown-number {
+  flex-shrink: 0;
+  font-weight: 500;
+}
+
+.markdown-h1 {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 6px 0 4px 0;
+}
+
+.markdown-h2 {
+  font-size: 13px;
+  font-weight: 700;
+  margin: 4px 0 2px 0;
+}
+
+.markdown-h3 {
+  font-size: 12px;
+  font-weight: 700;
+  margin: 2px 0;
 }

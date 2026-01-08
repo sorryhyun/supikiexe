@@ -1,0 +1,25 @@
+/* NanumSquareNeo font family */
+
+@font-face {
+  font-family: "NanumSquareNeo";
+  src: url("./fonts/NanumSquareNeoOTF-Lt.otf") format("opentype");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "NanumSquareNeo";
+  src: url("./fonts/NanumSquareNeoOTF-Rg.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "NanumSquareNeo";
+  src: url("./fonts/NanumSquareNeoOTF-Bd.otf") format("opentype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}

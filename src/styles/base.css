@@ -17,8 +17,8 @@ body,
   overflow: hidden;
   border: none;
   outline: none;
-  /* System fonts with CJK and emoji support */
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", "맑은 고딕", "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  /* NanumSquareNeo with fallback system fonts */
+  font-family: "NanumSquareNeo", -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", "맑은 고딕", "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
 }
 
 /* Main mascot container */
