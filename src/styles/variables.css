@@ -1,0 +1,33 @@
+/* Design Tokens - CSS Custom Properties */
+
+:root {
+  /* Brand Colors */
+  --color-brand-primary: #BD825D;
+  --color-brand-primary-hover: #a06e4d;
+  --color-brand-primary-light: rgba(189, 130, 93, 0.15);
+
+  /* Neutral Colors */
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #fafafa;
+  --color-text-primary: #333333;
+  --color-text-muted: #888888;
+  --color-border-light: #e0e0e0;
+  --color-error: #e74c3c;
+  --color-error-hover: #c0392b;
+
+  /* Spacing & Radius */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+
+  /* Shadows */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 4px 20px rgba(0, 0, 0, 0.2);
+
+  /* Transitions */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.2s ease;
+}

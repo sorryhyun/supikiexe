@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { getAgentService } from "../services/agentService";
 import { detectEmotion } from "../services/emotionMapper";
 import { sessionStorage } from "../services/sessionStorage";
+import { generateId } from "../utils/id";
 import type {
   AgentChatMessage,
   StreamingState,
@@ -99,7 +100,7 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
       metadata?: Partial<AgentChatMessage>
     ) => {
       const newMessage: AgentChatMessage = {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+        id: generateId(),
         sender,
         content,
         timestamp: Date.now(),

@@ -1,52 +1,19 @@
-/* Settings Window */
+/* Settings Window - Uses shared .modal, .modal-header, .modal-close, .modal-body, .modal-footer classes */
 
 .settings-window {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
   height: 100%;
-}
-
-.settings-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 12px;
-  background: #BD825D;
-  color: white;
-  font-size: 12px;
-  font-weight: 600;
 }
 
 .settings-close {
   width: 18px;
   height: 18px;
-  border: none;
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-  border-radius: 4px;
-  cursor: pointer;
   font-size: 12px;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.settings-close:hover {
-  background: rgba(255, 255, 255, 0.3);
 }
 
 .settings-body {
-  flex: 1;
-  padding: 12px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  overflow-y: auto;
 }
 
 .settings-section {
@@ -57,7 +24,7 @@
 
 .settings-label {
   font-size: 10px;
-  color: #888;
+  color: var(--color-text-muted);
   text-transform: uppercase;
   font-weight: 500;
 }
@@ -71,12 +38,12 @@
 .settings-language-item {
   padding: 6px 10px;
   background: #f5f5f5;
-  border: 2px solid #e0e0e0;
-  border-radius: 6px;
-  color: #333;
+  border: 2px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
   font-size: 11px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all var(--transition-fast);
 }
 
 .settings-language-item:hover {
@@ -85,20 +52,16 @@
 }
 
 .settings-language-item.selected {
-  background: rgba(189, 130, 93, 0.15);
-  border-color: #BD825D;
-  color: #BD825D;
+  background: var(--color-brand-primary-light);
+  border-color: var(--color-brand-primary);
+  color: var(--color-brand-primary);
   font-weight: 500;
 }
 
-.settings-footer {
-  padding: 8px 12px;
-  border-top: 1px solid #eee;
-  background: #fafafa;
-}
+/* Uses shared .modal-footer class */
 
 .settings-hint {
   font-size: 10px;
-  color: #888;
+  color: var(--color-text-muted);
   font-style: italic;
 }

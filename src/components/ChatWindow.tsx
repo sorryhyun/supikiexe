@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { emit, listen } from "@tauri-apps/api/event";
 import SpeechBubble from "./SpeechBubble";
 import ChatInput, { type AttachedImage } from "./ChatInput";
 import QuestionModal from "./QuestionModal";
 import CwdModal from "./CwdModal";
-import { useChatHistory } from "../hooks/useChatHistory";
+import { useAgentChat } from "../hooks/useAgentChat";
+import { useModalWindow } from "../hooks/useModalWindow";
 import type { Emotion } from "../emotion";
 
 function ChatWindow() {
@@ -24,9 +25,29 @@ function ChatWindow() {
     }
   };
 
-  const chat = useChatHistory({
+  const chat = useAgentChat({
     onEmotionChange: handleEmotionChange,
     sessionId: viewSessionId || undefined,
+  });
+
+  // Ref to track showCwdModal for blur skip condition
+  const showCwdModalRef = useRef(showCwdModal);
+  useEffect(() => {
+    showCwdModalRef.current = showCwdModal;
+  }, [showCwdModal]);
+
+  // Handle blur: emit event and hide window
+  const handleBlur = useCallback(async () => {
+    emit("chat-closed");
+    const appWindow = getCurrentWindow();
+    await appWindow.hide();
+  }, []);
+
+  // Use modal window behavior (focus/blur handling, drag start)
+  const { handleDragStart, userInitiatedDragRef } = useModalWindow({
+    closeOnBlur: true,
+    onBlur: handleBlur,
+    skipBlurRef: showCwdModalRef,
   });
 
   // Listen for hide request from main window
@@ -40,51 +61,10 @@ function ChatWindow() {
     };
   }, []);
 
-  // Hide chat window when it loses focus (clicking outside)
-  // Use a delay to avoid hiding during drag operations
-  // Use a ref to track showCwdModal so we can access it in the event listener
-  const showCwdModalRef = useRef(showCwdModal);
-  useEffect(() => {
-    showCwdModalRef.current = showCwdModal;
-  }, [showCwdModal]);
-
-  useEffect(() => {
-    const appWindow = getCurrentWindow();
-    let hideTimeout: number | null = null;
-
-    const unlisten = appWindow.onFocusChanged(async ({ payload: focused }) => {
-      if (focused) {
-        // Cancel any pending hide if we regain focus
-        if (hideTimeout) {
-          clearTimeout(hideTimeout);
-          hideTimeout = null;
-        }
-      } else {
-        // Don't hide if CwdModal is open (user might be using folder picker)
-        if (showCwdModalRef.current) {
-          return;
-        }
-        // Delay hide to allow for drag operations
-        hideTimeout = window.setTimeout(async () => {
-          emit("chat-closed");
-          await appWindow.hide();
-        }, 150);
-      }
-    });
-
-    return () => {
-      if (hideTimeout) clearTimeout(hideTimeout);
-      unlisten.then((fn) => fn());
-    };
-  }, []);
-
   // Scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chat.messages, chat.isTyping]);
-
-  // Track whether user initiated a drag
-  const userInitiatedDragRef = useRef(false);
 
   // Listen for window moved events and notify main window of new position
   useEffect(() => {
@@ -113,23 +93,6 @@ function ChatWindow() {
       unlistenMove.then((fn) => fn());
     };
   }, []);
-
-  // Enable window dragging - exclude input elements and buttons
-  const handleDragStart = async (e: React.MouseEvent) => {
-    const target = e.target as HTMLElement;
-    const tagName = target.tagName.toLowerCase();
-
-    // Don't drag if clicking on interactive elements
-    if (tagName === "input" || tagName === "textarea" || tagName === "button") {
-      return;
-    }
-
-    const appWindow = getCurrentWindow();
-
-    // Mark that user initiated this drag
-    userInitiatedDragRef.current = true;
-    await appWindow.startDragging();
-  };
 
   return (
     <div className="chat-window" onMouseDown={handleDragStart}>

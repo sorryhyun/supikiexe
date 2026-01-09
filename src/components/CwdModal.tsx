@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { commands } from "../bindings";
+import { useModalWindow } from "../hooks/useModalWindow";
+import { Modal } from "./Modal";
 import "../styles/cwdmodal.css";
 
 interface CwdModalProps {
@@ -12,6 +14,8 @@ function CwdModal({ onClose, onCwdChange }: CwdModalProps) {
   const [recentCwds, setRecentCwds] = useState<string[]>([]);
   const [inputPath, setInputPath] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  useModalWindow({ onEscape: onClose });
 
   // Load current cwd and recent cwds
   useEffect(() => {
@@ -66,17 +70,6 @@ function CwdModal({ onClose, onCwdChange }: CwdModalProps) {
     }
   };
 
-  // Handle keyboard
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
-
   // Get display name for path (last folder name)
   const getDisplayName = (path: string) => {
     const parts = path.replace(/\\/g, "/").split("/").filter(Boolean);
@@ -84,81 +77,74 @@ function CwdModal({ onClose, onCwdChange }: CwdModalProps) {
   };
 
   return (
-    <div className="cwd-modal-overlay" onClick={onClose}>
-      <div className="cwd-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="cwd-modal-header">
-          <span>Delegate Clawd</span>
-          <button className="cwd-modal-close" onClick={onClose}>
-            x
-          </button>
-        </div>
-
-        <div className="cwd-modal-body">
-          {/* Current CWD display */}
-          <div className="cwd-current">
-            <span className="cwd-label">Current directory:</span>
-            <span className="cwd-path" title={currentCwd || "Loading..."}>
-              {currentCwd ? getDisplayName(currentCwd) : "Loading..."}
-            </span>
-          </div>
-
-          {/* Input for new path */}
-          <form className="cwd-input-form" onSubmit={handleSubmit}>
-            <input
-              type="text"
-              className="cwd-input"
-              placeholder="Enter directory path..."
-              value={inputPath}
-              onChange={(e) => setInputPath(e.target.value)}
-              autoFocus
-            />
-            <div className="cwd-btn-stack">
-              <button
-                type="button"
-                className="cwd-browse-btn"
-                onClick={handleBrowse}
-              >
-                Browse
-              </button>
-              <button
-                type="submit"
-                className="cwd-submit-btn"
-                disabled={!inputPath.trim()}
-              >
-                Set
-              </button>
-            </div>
-          </form>
-
-          {error && <div className="cwd-error">{error}</div>}
-
-          {/* Recent CWDs */}
-          {recentCwds.length > 0 && (
-            <div className="cwd-recent">
-              <span className="cwd-label">Recent:</span>
-              <div className="cwd-recent-list">
-                {recentCwds.map((path, index) => (
-                  <button
-                    key={index}
-                    className="cwd-recent-item"
-                    onClick={() => handleSetCwd(path)}
-                    title={path}
-                  >
-                    {getDisplayName(path)}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="cwd-modal-footer">
-          <span className="cwd-hint">
-            Changes will start a new session
+    <Modal
+      title="Delegate Clawd"
+      onClose={onClose}
+      className="cwd-modal"
+      overlay
+      overlayDark
+      onOverlayClick={onClose}
+      footer={<span className="cwd-hint">Changes will start a new session</span>}
+    >
+      <div className="cwd-modal-body">
+        {/* Current CWD display */}
+        <div className="cwd-current">
+          <span className="cwd-label">Current directory:</span>
+          <span className="cwd-path" title={currentCwd || "Loading..."}>
+            {currentCwd ? getDisplayName(currentCwd) : "Loading..."}
           </span>
         </div>
+
+        {/* Input for new path */}
+        <form className="cwd-input-form" onSubmit={handleSubmit}>
+          <input
+            type="text"
+            className="cwd-input"
+            placeholder="Enter directory path..."
+            value={inputPath}
+            onChange={(e) => setInputPath(e.target.value)}
+            autoFocus
+          />
+          <div className="cwd-btn-stack">
+            <button
+              type="button"
+              className="cwd-browse-btn"
+              onClick={handleBrowse}
+            >
+              Browse
+            </button>
+            <button
+              type="submit"
+              className="cwd-submit-btn"
+              disabled={!inputPath.trim()}
+            >
+              Set
+            </button>
+          </div>
+        </form>
+
+        {error && <div className="cwd-error">{error}</div>}
+
+        {/* Recent CWDs */}
+        {recentCwds.length > 0 && (
+          <div className="cwd-recent">
+            <span className="cwd-label">Recent:</span>
+            <div className="cwd-recent-list">
+              {recentCwds.map((path, index) => (
+                <button
+                  key={index}
+                  className="cwd-recent-item"
+                  onClick={() => handleSetCwd(path)}
+                  title={path}
+                >
+                  {getDisplayName(path)}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
-    </div>
+    </Modal>
   );
 }
 

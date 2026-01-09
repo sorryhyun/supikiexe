@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import type { AgentQuestion } from "../services/agentTypes";
+import { useModalWindow } from "../hooks/useModalWindow";
 import "../styles/questionmodal.css";
 
 interface QuestionModalProps {
@@ -111,12 +112,13 @@ function QuestionModal({
     if (!isLast) setCurrentIndex((i) => i + 1);
   }, [isLast]);
 
-  // Keyboard handling
+  // Use modal window hook for escape key
+  useModalWindow({ onEscape: onCancel });
+
+  // Additional keyboard handling (Enter, Arrow keys)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && onCancel) {
-        onCancel();
-      } else if (e.key === "Enter" && allAnswered && !e.shiftKey) {
+      if (e.key === "Enter" && allAnswered && !e.shiftKey) {
         handleSubmit();
       } else if (e.key === "ArrowLeft" && hasMultipleQuestions) {
         goToPrev();
@@ -127,21 +129,21 @@ function QuestionModal({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [allAnswered, handleSubmit, onCancel, hasMultipleQuestions, goToPrev, goToNext]);
+  }, [allAnswered, handleSubmit, hasMultipleQuestions, goToPrev, goToNext]);
 
   return (
-    <div className="question-modal-overlay">
-      <div className="question-modal">
-        <div className="question-modal-header">
+    <div className="modal-overlay question-modal-overlay">
+      <div className="modal question-modal">
+        <div className="modal-header question-modal-header">
           <span>Question from Clawd</span>
           {onCancel && (
-            <button className="question-modal-close" onClick={onCancel}>
+            <button className="modal-close" onClick={onCancel}>
               x
             </button>
           )}
         </div>
 
-        <div className="question-modal-body">
+        <div className="modal-body">
           <div className="question-item">
             <div className="question-header-tag">{currentQuestion.header}</div>
             <div className="question-text">{currentQuestion.question}</div>
@@ -217,7 +219,7 @@ function QuestionModal({
           </div>
         </div>
 
-        <div className="question-modal-footer">
+        <div className="modal-footer question-modal-footer">
           {hasMultipleQuestions && (
             <div className="question-nav-buttons">
               <button

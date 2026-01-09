@@ -5,7 +5,7 @@ import { listen } from "@tauri-apps/api/event";
 import type { Emotion } from "../emotion";
 import { WINDOW_WIDTH } from "../constants";
 
-export interface ClawdEventHandlers {
+export interface MascotEventHandlers {
   onEmotionChange: (emotion: Emotion) => void;
   onWalkToWindow: (targetX: number) => void;
   onMove: (target: string, x: number | null) => void;
@@ -15,15 +15,15 @@ export interface ClawdEventHandlers {
   onOpenSession: (sessionId: string) => void;
 }
 
-export interface ClawdEventDeps {
+export interface MascotEventDeps {
   chatOpen: boolean;
   isDragging: boolean;
   getCurrentX: () => number;
 }
 
-export function useClawdEvents(
-  handlers: ClawdEventHandlers,
-  deps: ClawdEventDeps
+export function useMascotEvents(
+  handlers: MascotEventHandlers,
+  deps: MascotEventDeps
 ) {
   const { chatOpen, isDragging, getCurrentX } = deps;
 

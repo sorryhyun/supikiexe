@@ -1,4 +1,5 @@
 import type { ChatSession, AgentChatMessage } from "./agentTypes";
+import { generateId } from "../utils/id";
 
 const SESSIONS_KEY = "clawd-sessions";
 const CURRENT_SESSION_KEY = "clawd-current-session";
@@ -55,7 +56,7 @@ class SessionStorage {
     this.load();
 
     const session: ChatSession = {
-      id: `session-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      id: generateId("session"),
       title: "New Chat",
       createdAt: Date.now(),
       updatedAt: Date.now(),

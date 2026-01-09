@@ -1,6 +1,4 @@
-import { useEffect } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import {
   HISTORY_LIST_WIDTH,
   HISTORY_LIST_HEIGHT,
@@ -8,101 +6,42 @@ import {
   SETTINGS_WINDOW_HEIGHT,
 } from "../constants";
 import { commands } from "../bindings";
+import { useModalWindow } from "../hooks/useModalWindow";
+import { openFloatingWindow } from "../utils/windowManager";
 
 function ContextMenuWindow() {
-  // Close when losing focus (clicking outside)
-  useEffect(() => {
+  const handleClose = async () => {
     const win = getCurrentWindow();
-    let blurTimeout: number | null = null;
+    await win.close();
+  };
 
-    const handleKeyDown = async (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        await win.close();
-      }
-    };
-
-    // Close when window loses focus (with delay to allow click handlers to run first)
-    const unlisten = win.onFocusChanged(async ({ payload: focused }) => {
-      if (!focused) {
-        // Small delay to allow button clicks to execute before closing
-        blurTimeout = window.setTimeout(async () => {
-          await win.close();
-        }, 100);
-      } else if (blurTimeout) {
-        clearTimeout(blurTimeout);
-        blurTimeout = null;
-      }
-    });
-
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      if (blurTimeout) clearTimeout(blurTimeout);
-      unlisten.then((fn) => fn());
-    };
-  }, []);
+  // Use modal window hook for escape key and blur handling
+  useModalWindow({
+    onEscape: handleClose,
+    closeOnBlur: true,
+    blurDelay: 100,
+  });
 
   const handleChatHistory = async () => {
-    const win = getCurrentWindow();
-    const pos = await win.outerPosition();
-    const factor = await win.scaleFactor();
-
-    // Close any existing history list window
-    const existing = await WebviewWindow.getByLabel("historylist");
-    if (existing) {
-      await existing.close();
-    }
-
-    // Open the history list window near the context menu
-    new WebviewWindow("historylist", {
+    await openFloatingWindow({
+      label: "historylist",
       url: "index.html?historylist=true",
       title: "Chat History",
       width: HISTORY_LIST_WIDTH,
       height: HISTORY_LIST_HEIGHT,
-      x: Math.round(pos.x / factor),
-      y: Math.round(pos.y / factor - HISTORY_LIST_HEIGHT + 60),
-      resizable: false,
-      decorations: false,
-      transparent: true,
-      alwaysOnTop: true,
-      skipTaskbar: true,
-      shadow: false,
-      focus: true,
+      offsetY: -HISTORY_LIST_HEIGHT + 60,
     });
-
-    await win.close();
   };
 
   const handleSettings = async () => {
-    const win = getCurrentWindow();
-    const pos = await win.outerPosition();
-    const factor = await win.scaleFactor();
-
-    // Close any existing settings window
-    const existing = await WebviewWindow.getByLabel("settings");
-    if (existing) {
-      await existing.close();
-    }
-
-    // Open the settings window near the context menu
-    new WebviewWindow("settings", {
+    await openFloatingWindow({
+      label: "settings",
       url: "index.html?settings=true",
       title: "Settings",
       width: SETTINGS_WINDOW_WIDTH,
       height: SETTINGS_WINDOW_HEIGHT,
-      x: Math.round(pos.x / factor),
-      y: Math.round(pos.y / factor - SETTINGS_WINDOW_HEIGHT + 80),
-      resizable: false,
-      decorations: false,
-      transparent: true,
-      alwaysOnTop: true,
-      skipTaskbar: true,
-      shadow: false,
-      focus: true,
+      offsetY: -SETTINGS_WINDOW_HEIGHT + 80,
     });
-
-    await win.close();
   };
 
   const handleExit = async () => {
