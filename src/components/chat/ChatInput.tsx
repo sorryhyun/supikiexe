@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { commands } from "../bindings";
+import { commands } from "../../bindings";
 
 const MAX_IMAGES = 5;
 

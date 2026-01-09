@@ -4,10 +4,10 @@ import {
   HISTORY_LIST_HEIGHT,
   SETTINGS_WINDOW_WIDTH,
   SETTINGS_WINDOW_HEIGHT,
-} from "../constants";
-import { commands } from "../bindings";
-import { useModalWindow } from "../hooks/useModalWindow";
-import { openFloatingWindow } from "../utils/windowManager";
+} from "../../constants";
+import { commands } from "../../bindings";
+import { useModalWindow } from "../../hooks/useModalWindow";
+import { openFloatingWindow } from "../../utils/windowManager";
 
 function ContextMenuWindow() {
   const handleClose = async () => {

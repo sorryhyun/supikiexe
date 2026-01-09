@@ -1,5 +1,5 @@
 import { MascotApp } from "./MascotApp";
-import Clawd from "./Clawd";
+import Clawd from "./mascot/Clawd";
 
 function App() {
   return (

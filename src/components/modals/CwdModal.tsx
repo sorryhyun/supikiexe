@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import { commands } from "../bindings";
-import { useModalWindow } from "../hooks/useModalWindow";
+import { commands } from "../../bindings";
+import { useModalWindow } from "../../hooks/useModalWindow";
 import { Modal } from "./Modal";
-import "../styles/cwdmodal.css";
+import "../../styles/cwdmodal.css";
 
 interface CwdModalProps {
   onClose: () => void;

@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { emit, listen } from "@tauri-apps/api/event";
-import SpeechBubble from "./SpeechBubble";
-import ChatInput, { type AttachedImage } from "./ChatInput";
-import QuestionModal from "./QuestionModal";
-import CwdModal from "./CwdModal";
-import { useAgentChat } from "../hooks/useAgentChat";
-import { useModalWindow } from "../hooks/useModalWindow";
-import type { Emotion } from "../emotion";
+import SpeechBubble from "../mascot/SpeechBubble";
+import ChatInput, { type AttachedImage } from "../chat/ChatInput";
+import QuestionModal from "../modals/QuestionModal";
+import CwdModal from "../modals/CwdModal";
+import { useAgentChat } from "../../hooks/useAgentChat";
+import { useModalWindow } from "../../hooks/useModalWindow";
+import type { Emotion } from "../../emotion";
 
 function ChatWindow() {
   const messagesEndRef = useRef<HTMLDivElement>(null);

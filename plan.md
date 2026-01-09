@@ -1,41 +1,47 @@
-# Frontend Refactoring Plan
+# Component Directory Reorganization Plan
 
-## Completed Phases
+Reorganize `src/components/` into subdirectories for better organization.
 
-| Phase | Status | Lines Saved |
-|-------|--------|-------------|
-| 1. CSS Variables | Done | N/A (maintainability) |
-| 2. MascotApp | Done | ~450 lines |
-| 3. Modal Hook | Done | ~80 lines |
-| 4. Utility Hooks | Done | ~100 lines |
-| 5. Window Manager | Done | ~40 lines |
-| 6. Shared Modal CSS | Done | ~60 lines |
-| 7. Modal.tsx Component | Done | ~90 lines |
-| 8. Rename useClawdEvents | Done | N/A (maintainability) |
-| 9. QuestionModal hook | Done | ~15 lines |
-| 10. Chat Window Cleanup | Done | ~30 lines |
+## Final Structure
 
-### Files Created
-- `src/styles/variables.css` - CSS design tokens
-- `src/components/MascotApp.tsx` - Generic mascot app component
-- `src/components/Modal.tsx` - Reusable modal wrapper component
-- `src/hooks/useModalWindow.ts` - Modal behavior hook
-- `src/hooks/useTimeout.ts` - Timeout management hook
-- `src/hooks/useTauriEvent.ts` - Tauri event subscription hook
-- `src/hooks/useMascotEvents.ts` - Mascot event handlers (renamed from useClawdEvents)
-- `src/utils/id.ts` - ID generation utility
-- `src/utils/windowManager.ts` - Window creation utility
+```
+src/components/
+├── windows/              # Separate Tauri window entry points
+│   ├── ChatWindow.tsx
+│   ├── ChatHistoryListWindow.tsx
+│   ├── ContextMenuWindow.tsx
+│   └── SettingsWindow.tsx
+├── modals/               # Modal/dialog components
+│   ├── Modal.tsx
+│   ├── CwdModal.tsx
+│   └── QuestionModal.tsx
+├── mascot/               # Mascot-related components
+│   ├── Clawd.tsx
+│   ├── Supiki.tsx
+│   └── SpeechBubble.tsx
+├── chat/                 # Chat-related components
+│   └── ChatInput.tsx
+├── App.tsx               # App entry points (stay at root)
+├── SupikiApp.tsx
+└── MascotApp.tsx
+```
 
-### Files Removed
-- `src/hooks/useChatHistory.ts` - Thin wrapper removed
-- `src/hooks/useClawdEvents.ts` - Renamed to useMascotEvents.ts
+## Tasks
 
----
+| # | Task | Status |
+|---|------|--------|
+| 1 | Create subdirectories (`windows/`, `modals/`, `mascot/`, `chat/`) | Done |
+| 2 | Move window components to `windows/` | Done |
+| 3 | Move modal components to `modals/` | Done |
+| 4 | Move mascot components to `mascot/` | Done |
+| 5 | Move chat components to `chat/` | Done |
+| 6 | Update all import paths | Done |
+| 7 | Verify build passes | Done |
 
-## All Phases Complete
+## All Tasks Complete
 
-All planned refactoring phases have been completed. The codebase now has:
-- Centralized CSS design tokens
-- Reusable modal components and hooks
-- Consistent window behavior patterns
-- Cleaner hook separation
+The component directory has been reorganized with clear subdirectories:
+- **windows/**: Tauri window entry points (ChatWindow, SettingsWindow, etc.)
+- **modals/**: Overlay dialog components (Modal, CwdModal, QuestionModal)
+- **mascot/**: Mascot rendering components (Clawd, Supiki, SpeechBubble)
+- **chat/**: Chat-related components (ChatInput)

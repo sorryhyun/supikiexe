@@ -2,10 +2,10 @@ import React, { useState, useEffect } from "react";
 import ReactDOM from "react-dom/client";
 import App from "./components/App";
 import SupikiApp from "./components/SupikiApp";
-import ChatWindow from "./components/ChatWindow";
-import ContextMenuWindow from "./components/ContextMenuWindow";
-import ChatHistoryListWindow from "./components/ChatHistoryListWindow";
-import SettingsWindow from "./components/SettingsWindow";
+import ChatWindow from "./components/windows/ChatWindow";
+import ContextMenuWindow from "./components/windows/ContextMenuWindow";
+import ChatHistoryListWindow from "./components/windows/ChatHistoryListWindow";
+import SettingsWindow from "./components/windows/SettingsWindow";
 import { commands } from "./bindings";
 import "./styles/index.css";
 

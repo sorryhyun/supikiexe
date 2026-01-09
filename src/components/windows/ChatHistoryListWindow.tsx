@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { emitTo } from "@tauri-apps/api/event";
-import { sessionStorage } from "../services/sessionStorage";
-import type { ChatSession } from "../services/agentTypes";
+import { sessionStorage } from "../../services/sessionStorage";
+import type { ChatSession } from "../../services/agentTypes";
 
 function formatDate(timestamp: number): string {
   const date = new Date(timestamp);

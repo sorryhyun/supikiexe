@@ -1,5 +1,5 @@
 import { MascotApp } from "./MascotApp";
-import Supiki from "./Supiki";
+import Supiki from "./mascot/Supiki";
 import { useSupikiSounds } from "../hooks/useSupikiSounds";
 
 function SupikiApp() {

@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from "react";
-import { AnimationState, Direction } from "../hooks/useMascotState";
-import supikiImage from "../supiki/supiki.webp";
-import euSound from "../supiki/eu.wav";
-import ueSound from "../supiki/ue.wav";
+import { AnimationState, Direction } from "../../hooks/useMascotState";
+import supikiImage from "../../supiki/supiki.webp";
+import euSound from "../../supiki/eu.wav";
+import ueSound from "../../supiki/ue.wav";
 
 interface SupikiProps {
   animationState: AnimationState;

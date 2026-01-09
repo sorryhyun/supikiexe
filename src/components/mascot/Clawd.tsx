@@ -1,5 +1,5 @@
-import { AnimationState, Direction } from "../hooks/useMascotState";
-import { type Emotion, FACIAL_CONFIG, emotionToFacial } from "../emotion";
+import { AnimationState, Direction } from "../../hooks/useMascotState";
+import { type Emotion, FACIAL_CONFIG, emotionToFacial } from "../../emotion";
 
 interface ClawdProps {
   animationState: AnimationState;

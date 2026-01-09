@@ -5,10 +5,10 @@ import {
   saveSettings,
   SUPPORTED_LANGUAGES,
   type Settings,
-} from "../services/settingsStorage";
-import { useModalWindow } from "../hooks/useModalWindow";
-import { Modal } from "./Modal";
-import "../styles/settings.css";
+} from "../../services/settingsStorage";
+import { useModalWindow } from "../../hooks/useModalWindow";
+import { Modal } from "../modals/Modal";
+import "../../styles/settings.css";
 
 function SettingsWindow() {
   const [settings, setSettings] = useState<Settings>(loadSettings);

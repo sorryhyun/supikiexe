@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
-import type { AgentQuestion } from "../services/agentTypes";
-import { useModalWindow } from "../hooks/useModalWindow";
-import "../styles/questionmodal.css";
+import type { AgentQuestion } from "../../services/agentTypes";
+import { useModalWindow } from "../../hooks/useModalWindow";
+import "../../styles/questionmodal.css";
 
 interface QuestionModalProps {
   questionId: string;
