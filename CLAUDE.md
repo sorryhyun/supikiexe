@@ -34,6 +34,10 @@ cd src-tauri && cargo build    # Build Rust backend
 cd src-tauri && cargo check    # Type-check Rust code
 ```
 
+```bash
+make codegen-tauri   # Regenerate TypeScript bindings from Rust commands
+```
+
 ## Testing
 
 ```bash

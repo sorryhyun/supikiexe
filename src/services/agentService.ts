@@ -2,6 +2,7 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { AgentQueryCallbacks, Emotion, AgentQuestionEvent, AttachedImage } from "./agentTypes";
 import { EMOTIONS } from "../emotion";
 import { commands } from "../bindings";
+import { getLanguage } from "./settingsStorage";
 
 // Emotion update callback type
 type EmotionCallback = (emotion: Emotion, duration: number) => void;
@@ -114,7 +115,8 @@ export class AgentService {
       // Invoke the Rust command (now async, returns immediately)
       // Convert images to base64 array for IPC
       const imageBase64s = images?.map((img) => img.base64) || [];
-      const result = await commands.sendAgentMessage(prompt, imageBase64s);
+      const language = getLanguage();
+      const result = await commands.sendAgentMessage(prompt, imageBase64s, language);
       if (result.status === "error") {
         throw new Error(result.error);
       }

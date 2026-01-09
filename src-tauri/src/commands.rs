@@ -20,11 +20,13 @@ pub async fn send_agent_message(
     app: tauri::AppHandle,
     message: String,
     images: Vec<String>,
+    language: Option<String>,
 ) -> Result<(), String> {
     println!(
-        "[Rust] send_agent_message called with: {}, images: {}",
+        "[Rust] send_agent_message called with: {}, images: {}, language: {:?}",
         message,
-        images.len()
+        images.len(),
+        language
     );
 
     // Get current session ID
@@ -35,7 +37,8 @@ pub async fn send_agent_message(
         "type": "query",
         "prompt": message,
         "sessionId": session_id,
-        "images": images
+        "images": images,
+        "language": language
     });
 
     // Run query in a fresh Node.js process

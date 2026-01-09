@@ -235,10 +235,11 @@ function getCliPath() {
 /**
  * Build options for mascot mode (default)
  */
-function buildMascotOptions(sessionId, mcpServer) {
+function buildMascotOptions(sessionId, mcpServer, language) {
   const cliPath = getCliPath();
+  const languageInstruction = getLanguageInstruction(language);
   const options = {
-    systemPrompt: SYSTEM_PROMPT,
+    systemPrompt: SYSTEM_PROMPT + languageInstruction,
     permissionMode: "bypassPermissions",
     canUseTool: handleCanUseTool,
   };
@@ -257,16 +258,17 @@ function buildMascotOptions(sessionId, mcpServer) {
 /**
  * Build options for dev mode (Claude Code features)
  */
-function buildDevOptions(sessionId, mcpServer) {
+function buildDevOptions(sessionId, mcpServer, language) {
   const cliPath = getCliPath();
   // Use custom cwd from environment if set, otherwise fall back to process.cwd()
   const workingDir = process.env.CLAWD_CWD || process.cwd();
+  const languageInstruction = getLanguageInstruction(language);
   const options = {
-    // Use Claude Code's system prompt with appended mascot personality
+    // Use Claude Code's system prompt with appended mascot personality and language
     systemPrompt: {
       type: 'preset',
       preset: 'claude_code',
-      append: DEV_PERSONALITY_PROMPT,
+      append: DEV_PERSONALITY_PROMPT + languageInstruction,
     },
     // Load settings from CLAUDE.md files
     settingSources: ['user', 'project', 'local'],
@@ -347,9 +349,29 @@ async function* createImagePromptGenerator(textPrompt, images) {
 }
 
 /**
+ * Get language instruction for system prompt
+ */
+function getLanguageInstruction(language) {
+  const languageNames = {
+    en: "English",
+    ko: "Korean (한국어)",
+    ja: "Japanese (日本語)",
+    zh: "Chinese (中文)",
+    es: "Spanish (Español)",
+    fr: "French (Français)",
+    de: "German (Deutsch)",
+  };
+  const langName = languageNames[language] || languageNames.en;
+  if (language && language !== "en") {
+    return `\n\nIMPORTANT: Always respond in ${langName}. Use ${langName} for all your responses unless the user explicitly asks for a different language.`;
+  }
+  return "";
+}
+
+/**
  * Handle a query using the Claude Agent SDK
  */
-async function handleQuery({ prompt, sessionId, images }) {
+async function handleQuery({ prompt, sessionId, images, language }) {
   const devMode = isDevMode();
   const supikiMode = isSupikiMode();
   const modeString = devMode ? "DEV" : supikiMode ? "SUPIKI" : "MASCOT";
@@ -357,6 +379,7 @@ async function handleQuery({ prompt, sessionId, images }) {
   log(`Session ID: ${sessionId || "new session"}`);
   log(`Mode: ${modeString}`);
   log(`Images: ${images?.length || 0}`);
+  log(`Language: ${language || "en"}`);
 
   try {
     // Create MCP server if not exists (for SDK MCP tools)
@@ -370,8 +393,8 @@ async function handleQuery({ prompt, sessionId, images }) {
 
     // Build query options based on mode
     const options = devMode
-      ? buildDevOptions(sessionId, clawdMcpServer)
-      : buildMascotOptions(sessionId, clawdMcpServer);
+      ? buildDevOptions(sessionId, clawdMcpServer, language)
+      : buildMascotOptions(sessionId, clawdMcpServer, language);
 
     // Build prompt: use generator for images (streaming input mode), string for text-only
     const hasImages = images && images.length > 0;
@@ -442,6 +465,7 @@ async function handleCommand(line) {
           prompt: cmd.prompt,
           sessionId: cmd.sessionId || currentSessionId,
           images: cmd.images || [],
+          language: cmd.language || "en",
         });
         break;
 

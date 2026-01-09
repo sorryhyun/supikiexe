@@ -18,7 +18,13 @@
       "Bash(cargo test:*)",
       "Bash(make test:*)",
       "Bash(make codegen-tauri:*)",
-      "Bash(make codegen:*)"
+      "Bash(make codegen:*)",
+      "Bash(xargs:*)",
+      "Bash(find:*)",
+      "Bash(dir:*)",
+      "Bash(tree:*)",
+      "Bash(grep:*)",
+      "Bash(wc:*)"
     ]
   }
 }

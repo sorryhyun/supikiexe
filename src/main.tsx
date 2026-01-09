@@ -5,6 +5,7 @@ import SupikiApp from "./components/SupikiApp";
 import ChatWindow from "./components/ChatWindow";
 import ContextMenuWindow from "./components/ContextMenuWindow";
 import ChatHistoryListWindow from "./components/ChatHistoryListWindow";
+import SettingsWindow from "./components/SettingsWindow";
 import { commands } from "./bindings";
 import "./styles/index.css";
 
@@ -13,6 +14,7 @@ const urlParams = new URLSearchParams(window.location.search);
 const isChatWindow = urlParams.get("chat") === "true";
 const isContextMenu = urlParams.get("contextmenu") === "true";
 const isHistoryList = urlParams.get("historylist") === "true";
+const isSettings = urlParams.get("settings") === "true";
 
 // Check mascot type from environment variable (for dev mode)
 const envSupikiMode = import.meta.env.VITE_MASCOT_TYPE === "supiki";
@@ -38,6 +40,7 @@ function RootComponent() {
 
   if (isContextMenu) return <ContextMenuWindow />;
   if (isHistoryList) return <ChatHistoryListWindow />;
+  if (isSettings) return <SettingsWindow />;
   if (isChatWindow) return <ChatWindow />;
 
   // Wait for supiki mode check before rendering mascot

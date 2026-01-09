@@ -9,9 +9,9 @@ export const commands = {
 /**
  * Send a message to Claude via a fresh sidecar process
  */
-async sendAgentMessage(message: string, images: string[]) : Promise<Result<null, string>> {
+async sendAgentMessage(message: string, images: string[], language: string | null) : Promise<Result<null, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("send_agent_message", { message, images }) };
+    return { status: "ok", data: await TAURI_INVOKE("send_agent_message", { message, images, language }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };

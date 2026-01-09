@@ -1,7 +1,12 @@
 import { useEffect } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { HISTORY_LIST_WIDTH, HISTORY_LIST_HEIGHT } from "../constants";
+import {
+  HISTORY_LIST_WIDTH,
+  HISTORY_LIST_HEIGHT,
+  SETTINGS_WINDOW_WIDTH,
+  SETTINGS_WINDOW_HEIGHT,
+} from "../constants";
 import { commands } from "../bindings";
 
 function ContextMenuWindow() {
@@ -69,6 +74,37 @@ function ContextMenuWindow() {
     await win.close();
   };
 
+  const handleSettings = async () => {
+    const win = getCurrentWindow();
+    const pos = await win.outerPosition();
+    const factor = await win.scaleFactor();
+
+    // Close any existing settings window
+    const existing = await WebviewWindow.getByLabel("settings");
+    if (existing) {
+      await existing.close();
+    }
+
+    // Open the settings window near the context menu
+    new WebviewWindow("settings", {
+      url: "index.html?settings=true",
+      title: "Settings",
+      width: SETTINGS_WINDOW_WIDTH,
+      height: SETTINGS_WINDOW_HEIGHT,
+      x: Math.round(pos.x / factor),
+      y: Math.round(pos.y / factor - SETTINGS_WINDOW_HEIGHT + 80),
+      resizable: false,
+      decorations: false,
+      transparent: true,
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      shadow: false,
+      focus: true,
+    });
+
+    await win.close();
+  };
+
   const handleExit = async () => {
     // Invoke quit first - app will exit before this returns
     commands.quitApp();
@@ -78,6 +114,9 @@ function ContextMenuWindow() {
     <div className="context-menu-window">
       <button className="context-menu-item" onClick={handleChatHistory}>
         Chat History
+      </button>
+      <button className="context-menu-item" onClick={handleSettings}>
+        Settings
       </button>
       <div className="context-menu-divider" />
       <button className="context-menu-item context-menu-item-exit" onClick={handleExit}>
