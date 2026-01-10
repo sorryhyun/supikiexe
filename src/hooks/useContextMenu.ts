@@ -15,11 +15,14 @@ export function useContextMenu() {
     e.preventDefault();
     e.stopPropagation();
 
-    await closeContextMenu();
+    // Close existing menu without waiting
+    closeContextMenu();
 
     const appWindow = getCurrentWindow();
-    const windowPos = await appWindow.outerPosition();
-    const factor = await appWindow.scaleFactor();
+    const [windowPos, factor] = await Promise.all([
+      appWindow.outerPosition(),
+      appWindow.scaleFactor(),
+    ]);
 
     const menuX = windowPos.x / factor + e.clientX;
     const menuY = windowPos.y / factor + e.clientY;

@@ -78,6 +78,10 @@ const sessionId = await commands.getSessionId();  // Returns string | null
 3. Run `npm run dev` to regenerate bindings (or `make codegen-tauri`)
 4. Import from `./bindings` in frontend
 
+## Adding New Windows
+
+When creating a new window, add its label to `src-tauri/capabilities/default.json` in the `windows` array to grant it necessary permissions.
+
 ## Sidecar IPC Protocol
 
 The Rust backend communicates with the Node.js sidecar via stdio JSON messages.

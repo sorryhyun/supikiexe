@@ -1,17 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { emit, listen } from "@tauri-apps/api/event";
 import SpeechBubble from "../mascot/SpeechBubble";
 import ChatInput, { type AttachedImage } from "../chat/ChatInput";
 import QuestionModal from "../modals/QuestionModal";
-import CwdModal from "../modals/CwdModal";
 import { useAgentChat } from "../../hooks/useAgentChat";
 import { useModalWindow } from "../../hooks/useModalWindow";
 import type { Emotion } from "../../emotion";
 
 function ChatWindow() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [showCwdModal, setShowCwdModal] = useState(false);
 
   // Check if viewing a past session (read-only mode)
   const urlParams = new URLSearchParams(window.location.search);
@@ -30,12 +28,6 @@ function ChatWindow() {
     sessionId: viewSessionId || undefined,
   });
 
-  // Ref to track showCwdModal for blur skip condition
-  const showCwdModalRef = useRef(showCwdModal);
-  useEffect(() => {
-    showCwdModalRef.current = showCwdModal;
-  }, [showCwdModal]);
-
   // Handle blur: emit event and hide window
   const handleBlur = useCallback(async () => {
     emit("chat-closed");
@@ -47,7 +39,6 @@ function ChatWindow() {
   const { handleDragStart, userInitiatedDragRef } = useModalWindow({
     closeOnBlur: true,
     onBlur: handleBlur,
-    skipBlurRef: showCwdModalRef,
   });
 
   // Listen for hide request from main window
@@ -60,6 +51,16 @@ function ChatWindow() {
       unlisten.then((fn) => fn());
     };
   }, []);
+
+  // Listen for cwd-changed event from CwdWindow
+  useEffect(() => {
+    const unlisten = listen("cwd-changed", () => {
+      chat.clearHistory();
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [chat]);
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
@@ -172,7 +173,6 @@ function ChatWindow() {
               onAnalyzeScreen={() =>
                 chat.sendMessage("Capture a screenshot and analyze the problem you see")
               }
-              onDelegateClawd={() => setShowCwdModal(true)}
             />
           </div>
         )}
@@ -187,17 +187,6 @@ function ChatWindow() {
           questions={chat.pendingQuestion.questions}
           onSubmit={chat.answerQuestion}
           onCancel={chat.cancelQuestion}
-        />
-      )}
-
-      {/* CWD modal for delegating clawd */}
-      {!isViewMode && showCwdModal && (
-        <CwdModal
-          onClose={() => setShowCwdModal(false)}
-          onCwdChange={() => {
-            // Clear chat history when cwd changes
-            chat.clearHistory();
-          }}
         />
       )}
     </div>

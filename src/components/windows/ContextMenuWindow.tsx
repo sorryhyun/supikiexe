@@ -4,6 +4,8 @@ import {
   HISTORY_LIST_HEIGHT,
   SETTINGS_WINDOW_WIDTH,
   SETTINGS_WINDOW_HEIGHT,
+  CWD_WINDOW_WIDTH,
+  CWD_WINDOW_HEIGHT,
 } from "../../constants";
 import { commands } from "../../bindings";
 import { useModalWindow } from "../../hooks/useModalWindow";
@@ -44,6 +46,17 @@ function ContextMenuWindow() {
     });
   };
 
+  const handleChangePath = async () => {
+    await openFloatingWindow({
+      label: "cwd",
+      url: "index.html?cwd=true",
+      title: "Change Path",
+      width: CWD_WINDOW_WIDTH,
+      height: CWD_WINDOW_HEIGHT,
+      offsetY: -CWD_WINDOW_HEIGHT + 80,
+    });
+  };
+
   const handleExit = async () => {
     // Invoke quit first - app will exit before this returns
     commands.quitApp();
@@ -56,6 +69,9 @@ function ContextMenuWindow() {
       </button>
       <button className="context-menu-item" onClick={handleSettings}>
         Settings
+      </button>
+      <button className="context-menu-item" onClick={handleChangePath}>
+        Change Path
       </button>
       <div className="context-menu-divider" />
       <button className="context-menu-item context-menu-item-exit" onClick={handleExit}>

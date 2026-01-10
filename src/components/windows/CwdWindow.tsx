@@ -1,21 +1,27 @@
 import { useState, useEffect } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { emit } from "@tauri-apps/api/event";
 import { commands } from "../../bindings";
 import { useModalWindow } from "../../hooks/useModalWindow";
-import { Modal } from "./Modal";
+import { Modal } from "../modals/Modal";
 import "../../styles/cwdmodal.css";
 
-interface CwdModalProps {
-  onClose: () => void;
-  onCwdChange: () => void;
-}
-
-function CwdModal({ onClose, onCwdChange }: CwdModalProps) {
+function CwdWindow() {
   const [currentCwd, setCurrentCwd] = useState<string | null>(null);
   const [recentCwds, setRecentCwds] = useState<string[]>([]);
   const [inputPath, setInputPath] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  useModalWindow({ onEscape: onClose });
+  const handleClose = async () => {
+    const win = getCurrentWindow();
+    await win.close();
+  };
+
+  const { handleDragStart } = useModalWindow({
+    onEscape: handleClose,
+    closeOnBlur: true,
+    blurDelay: 150,
+  });
 
   // Load current cwd and recent cwds
   useEffect(() => {
@@ -26,7 +32,7 @@ function CwdModal({ onClose, onCwdChange }: CwdModalProps) {
         const recent = await commands.getRecentCwds();
         setRecentCwds(recent);
       } catch (err) {
-        console.error("[CwdModal] Failed to load data:", err);
+        console.error("[CwdWindow] Failed to load data:", err);
       }
     };
     loadData();
@@ -38,8 +44,9 @@ function CwdModal({ onClose, onCwdChange }: CwdModalProps) {
       setError(null);
       const result = await commands.setSidecarCwd(path);
       if (result.status === "ok") {
-        onCwdChange();
-        onClose();
+        // Emit event to notify chat window to clear history
+        emit("cwd-changed");
+        handleClose();
       } else {
         setError(result.error);
       }
@@ -58,7 +65,7 @@ function CwdModal({ onClose, onCwdChange }: CwdModalProps) {
         await handleSetCwd(folder);
       }
     } catch (err) {
-      console.error("[CwdModal] Failed to pick folder:", err);
+      console.error("[CwdWindow] Failed to pick folder:", err);
     }
   };
 
@@ -78,12 +85,10 @@ function CwdModal({ onClose, onCwdChange }: CwdModalProps) {
 
   return (
     <Modal
-      title="Delegate Clawd"
-      onClose={onClose}
+      title="Change Path"
+      onClose={handleClose}
       className="cwd-modal"
-      overlay
-      overlayDark
-      onOverlayClick={onClose}
+      onMouseDown={handleDragStart}
       footer={<span className="cwd-hint">Changes will start a new session</span>}
     >
       <div className="cwd-modal-body">
@@ -148,4 +153,4 @@ function CwdModal({ onClose, onCwdChange }: CwdModalProps) {
   );
 }
 
-export default CwdModal;
+export default CwdWindow;

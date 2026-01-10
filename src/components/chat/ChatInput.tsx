@@ -12,10 +12,9 @@ interface ChatInputProps {
   onSend: (message: string, images?: AttachedImage[]) => void;
   disabled?: boolean;
   onAnalyzeScreen?: () => void;
-  onDelegateClawd?: () => void;
 }
 
-function ChatInput({ onSend, disabled, onAnalyzeScreen, onDelegateClawd }: ChatInputProps) {
+function ChatInput({ onSend, disabled, onAnalyzeScreen }: ChatInputProps) {
   const [value, setValue] = useState("");
   const [attachedImages, setAttachedImages] = useState<AttachedImage[]>([]);
   const [showPlusMenu, setShowPlusMenu] = useState(false);
@@ -108,11 +107,6 @@ function ChatInput({ onSend, disabled, onAnalyzeScreen, onDelegateClawd }: ChatI
     onAnalyzeScreen?.();
   };
 
-  const handleDelegateClawd = () => {
-    setShowPlusMenu(false);
-    onDelegateClawd?.();
-  };
-
   return (
     <div className="chat-input-container">
       {attachedImages.length > 0 && (
@@ -151,9 +145,6 @@ function ChatInput({ onSend, disabled, onAnalyzeScreen, onDelegateClawd }: ChatI
             <div className="chat-plus-menu">
               <button type="button" onClick={handleAnalyzeScreen}>
                 Analyze screen
-              </button>
-              <button type="button" onClick={handleDelegateClawd}>
-                Delegate clawd
               </button>
             </div>
           )}
