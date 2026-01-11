@@ -10,6 +10,7 @@ import type { Emotion } from "../../emotion";
 
 function ChatWindow() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const skipBlurRef = useRef(false);
 
   // Check if viewing a past session (read-only mode)
   const urlParams = new URLSearchParams(window.location.search);
@@ -28,6 +29,11 @@ function ChatWindow() {
     sessionId: viewSessionId || undefined,
   });
 
+  // Skip blur when agent is processing (node.exe spawning can steal focus)
+  useEffect(() => {
+    skipBlurRef.current = chat.isTyping;
+  }, [chat.isTyping]);
+
   // Handle blur: emit event and hide window
   const handleBlur = useCallback(async () => {
     emit("chat-closed");
@@ -39,6 +45,7 @@ function ChatWindow() {
   const { handleDragStart, userInitiatedDragRef } = useModalWindow({
     closeOnBlur: true,
     onBlur: handleBlur,
+    skipBlurRef,
   });
 
   // Listen for hide request from main window

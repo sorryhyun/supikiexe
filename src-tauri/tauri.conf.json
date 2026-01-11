@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "identifier": "com.claude.mascot",
   "build": {
-    "beforeDevCommand": "npm run vite",
-    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "npx vite dev",
+    "devUrl": "http://127.0.0.1:5173",
     "beforeBuildCommand": "npm run vite:build",
     "frontendDist": "../dist"
   },
