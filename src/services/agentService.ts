@@ -2,7 +2,7 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { AgentQueryCallbacks, Emotion, AgentQuestionEvent, AttachedImage } from "./agentTypes";
 import { EMOTIONS } from "../emotion";
 import { commands } from "../bindings";
-import { getLanguage } from "./settingsStorage";
+import { getLanguage, getBackendMode } from "./settingsStorage";
 
 // Emotion update callback type
 type EmotionCallback = (emotion: Emotion, duration: number) => void;
@@ -21,6 +21,21 @@ export class AgentService {
     // Set up persistent event listeners
     this.setupEmotionListener();
     this.setupQuestionListener();
+    // Sync backend mode from settings on startup
+    this.syncBackendMode();
+  }
+
+  /**
+   * Sync backend mode from local settings to Rust backend
+   */
+  private async syncBackendMode(): Promise<void> {
+    const savedMode = getBackendMode();
+    try {
+      await commands.setBackendMode(savedMode);
+      console.log("[AgentService] Backend mode synced:", savedMode);
+    } catch (e) {
+      console.error("[AgentService] Failed to sync backend mode:", e);
+    }
   }
 
   /**

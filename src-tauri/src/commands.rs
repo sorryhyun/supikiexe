@@ -7,10 +7,11 @@ use std::process::Command;
 
 use tauri::Manager;
 
-use crate::claude_runner::{check_claude_available, clear_session, run_query};
-use crate::state::{DEV_MODE, MAX_RECENT_CWDS, RECENT_CWDS, SESSION_ID, SIDECAR_CWD, SUPIKI_MODE};
+use crate::claude_runner::{check_claude_available, clear_session as clear_claude_session, run_query as run_claude_query};
+use crate::codex_runner::{check_codex_available_with_app, clear_session as clear_codex_session, run_query as run_codex_query};
+use crate::state::{BackendMode, BACKEND_MODE, CODEX_SESSION_ID, DEV_MODE, MAX_RECENT_CWDS, RECENT_CWDS, SESSION_ID, SIDECAR_CWD, SUPIKI_MODE};
 
-/// Send a message to Claude via the Claude CLI
+/// Send a message to the AI backend (Claude or Codex)
 #[tauri::command]
 #[specta::specta]
 pub async fn send_agent_message(
@@ -19,24 +20,37 @@ pub async fn send_agent_message(
     images: Vec<String>,
     _language: Option<String>,
 ) -> Result<(), String> {
+    let mode = *BACKEND_MODE.lock().unwrap();
+
     println!(
-        "[Rust] send_agent_message called with: {}, images: {}",
+        "[Rust] send_agent_message called with: {}, images: {}, backend: {:?}",
         message,
-        images.len()
+        images.len(),
+        mode
     );
 
-    // Run query using Claude CLI
-    run_query(app, message, images)?;
-
-    Ok(())
+    // Route to appropriate backend
+    match mode {
+        BackendMode::Claude => run_claude_query(app, message, images),
+        BackendMode::Codex => run_codex_query(app, message, images),
+    }
 }
 
-/// Clear the current session
+/// Clear the current session (for active backend)
 #[tauri::command]
 #[specta::specta]
 pub fn clear_agent_session() -> Result<(), String> {
-    clear_session();
-    println!("[Rust] Session cleared");
+    let mode = *BACKEND_MODE.lock().unwrap();
+    match mode {
+        BackendMode::Claude => {
+            clear_claude_session();
+            println!("[Rust] Claude session cleared");
+        }
+        BackendMode::Codex => {
+            clear_codex_session();
+            println!("[Rust] Codex session cleared");
+        }
+    }
     Ok(())
 }
 
@@ -108,10 +122,11 @@ pub fn set_sidecar_cwd(path: String) -> Result<(), String> {
     // Set current cwd
     *SIDECAR_CWD.lock().unwrap() = Some(path.clone());
 
-    // Clear session to start fresh with new cwd
-    clear_session();
+    // Clear both sessions to start fresh with new cwd
+    clear_claude_session();
+    clear_codex_session();
 
-    println!("[Rust] Claude CWD set to: {} (session cleared)", path);
+    println!("[Rust] CWD set to: {} (sessions cleared)", path);
     Ok(())
 }
 
@@ -246,4 +261,60 @@ pub fn open_image_in_viewer(base64_data: String) -> Result<(), String> {
 #[specta::specta]
 pub fn check_claude_cli() -> Result<String, String> {
     check_claude_available()
+}
+
+/// Check if Codex CLI is available
+#[tauri::command]
+#[specta::specta]
+pub fn check_codex_cli(app: tauri::AppHandle) -> Result<String, String> {
+    check_codex_available_with_app(&app)
+}
+
+/// Get current backend mode (claude or codex)
+#[tauri::command]
+#[specta::specta]
+pub fn get_backend_mode() -> String {
+    match *BACKEND_MODE.lock().unwrap() {
+        BackendMode::Claude => "claude".to_string(),
+        BackendMode::Codex => "codex".to_string(),
+    }
+}
+
+/// Set backend mode (claude or codex)
+#[tauri::command]
+#[specta::specta]
+pub fn set_backend_mode(mode: String) -> Result<(), String> {
+    let backend = match mode.as_str() {
+        "claude" => BackendMode::Claude,
+        "codex" => BackendMode::Codex,
+        _ => return Err(format!("Invalid backend mode: {}. Use 'claude' or 'codex'.", mode)),
+    };
+    *BACKEND_MODE.lock().unwrap() = backend;
+    println!("[Rust] Backend mode set to: {:?}", backend);
+    Ok(())
+}
+
+/// Get Codex session ID
+#[tauri::command]
+#[specta::specta]
+pub fn get_codex_session_id() -> Option<String> {
+    CODEX_SESSION_ID.lock().unwrap().clone()
+}
+
+/// Clear Codex session specifically
+#[tauri::command]
+#[specta::specta]
+pub fn clear_codex_session_cmd() -> Result<(), String> {
+    clear_codex_session();
+    println!("[Rust] Codex session cleared");
+    Ok(())
+}
+
+/// Clear Claude session specifically
+#[tauri::command]
+#[specta::specta]
+pub fn clear_claude_session_cmd() -> Result<(), String> {
+    clear_claude_session();
+    println!("[Rust] Claude session cleared");
+    Ok(())
 }

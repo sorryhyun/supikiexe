@@ -7,7 +7,7 @@
 
 export const commands = {
 /**
- * Send a message to Claude via the Claude CLI
+ * Send a message to the AI backend (Claude or Codex)
  */
 async sendAgentMessage(message: string, images: string[], language: string | null) : Promise<Result<null, string>> {
     try {
@@ -18,7 +18,7 @@ async sendAgentMessage(message: string, images: string[], language: string | nul
 }
 },
 /**
- * Clear the current session
+ * Clear the current session (for active backend)
  */
 async clearAgentSession() : Promise<Result<null, string>> {
     try {
@@ -124,6 +124,62 @@ async pickFolder() : Promise<string | null> {
 async checkClaudeCli() : Promise<Result<string, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("check_claude_cli") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Check if Codex CLI is available
+ */
+async checkCodexCli() : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("check_codex_cli") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Get current backend mode (claude or codex)
+ */
+async getBackendMode() : Promise<string> {
+    return await TAURI_INVOKE("get_backend_mode");
+},
+/**
+ * Set backend mode (claude or codex)
+ */
+async setBackendMode(mode: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_backend_mode", { mode }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Get Codex session ID
+ */
+async getCodexSessionId() : Promise<string | null> {
+    return await TAURI_INVOKE("get_codex_session_id");
+},
+/**
+ * Clear Codex session specifically
+ */
+async clearCodexSessionCmd() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("clear_codex_session_cmd") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Clear Claude session specifically
+ */
+async clearClaudeSessionCmd() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("clear_claude_session_cmd") };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };

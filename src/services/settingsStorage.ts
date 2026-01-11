@@ -4,12 +4,16 @@
 
 const SETTINGS_KEY = "clawd-settings";
 
+export type BackendMode = "claude" | "codex";
+
 export interface Settings {
   language: string;
+  backendMode: BackendMode;
 }
 
 const DEFAULT_SETTINGS: Settings = {
   language: "en",
+  backendMode: "claude",
 };
 
 export const SUPPORTED_LANGUAGES = [
@@ -50,5 +54,15 @@ export function getLanguage(): string {
 export function setLanguage(language: string): void {
   const settings = loadSettings();
   settings.language = language;
+  saveSettings(settings);
+}
+
+export function getBackendMode(): BackendMode {
+  return loadSettings().backendMode;
+}
+
+export function setBackendMode(mode: BackendMode): void {
+  const settings = loadSettings();
+  settings.backendMode = mode;
   saveSettings(settings);
 }

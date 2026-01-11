@@ -7,7 +7,10 @@
 //! - `claude_runner`: Claude CLI process management
 //! - `commands`: Tauri IPC commands exposed to the frontend
 
+mod claude_command;
 mod claude_runner;
+mod codex_command;
+mod codex_runner;
 mod commands;
 mod state;
 
@@ -18,9 +21,11 @@ use tauri::{
 };
 
 use commands::{
-    answer_agent_question, check_claude_cli, clear_agent_session, get_actual_cwd, get_recent_cwds,
-    get_session_id, get_sidecar_cwd, is_dev_mode, is_supiki_mode, open_image_in_viewer,
-    pick_folder, quit_app, send_agent_message, set_sidecar_cwd, stop_sidecar,
+    answer_agent_question, check_claude_cli, check_codex_cli, clear_agent_session,
+    clear_claude_session_cmd, clear_codex_session_cmd, get_actual_cwd, get_backend_mode,
+    get_codex_session_id, get_recent_cwds, get_session_id, get_sidecar_cwd, is_dev_mode,
+    is_supiki_mode, open_image_in_viewer, pick_folder, quit_app, send_agent_message,
+    set_backend_mode, set_sidecar_cwd, stop_sidecar,
 };
 use state::{DEV_MODE, SUPIKI_MODE};
 
@@ -42,7 +47,14 @@ pub fn create_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         get_actual_cwd,
         get_recent_cwds,
         pick_folder,
-        check_claude_cli
+        check_claude_cli,
+        // Codex-related commands
+        check_codex_cli,
+        get_backend_mode,
+        set_backend_mode,
+        get_codex_session_id,
+        clear_codex_session_cmd,
+        clear_claude_session_cmd
     ])
 }
 
@@ -85,6 +97,17 @@ pub fn run() {
     match claude_runner::check_claude_available() {
         Ok(version) => {
             println!("[Rust] Claude CLI available: {}", version);
+        }
+        Err(e) => {
+            eprintln!("[Rust] Warning: {}", e);
+            // Continue anyway - user might install it later
+        }
+    }
+
+    // Check if Codex CLI is available
+    match codex_runner::check_codex_available() {
+        Ok(version) => {
+            println!("[Rust] Codex CLI available: {}", version);
         }
         Err(e) => {
             eprintln!("[Rust] Warning: {}", e);

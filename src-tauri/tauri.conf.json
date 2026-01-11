@@ -41,7 +41,8 @@
       "icons/icon.ico"
     ],
     "resources": [
-      "../mascot-mcp/target/release/mascot-mcp.exe"
+      "../mascot-mcp/target/release/mascot-mcp.exe",
+      "../codex-x86_64-pc-windows-msvc.exe"
     ]
   }
 }

@@ -4,15 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Claude Mascot is a desktop mascot application featuring "Clawd" - an animated character that lives on the user's desktop. Built with Tauri v2 (Rust backend) + React + TypeScript (frontend) + Claude Code CLI (AI backend).
+Claude Mascot is a desktop mascot application featuring "Clawd" - an animated character that lives on the user's desktop. Built with Tauri v2 (Rust backend) + React + TypeScript (frontend) + AI CLI backends (Claude Code or OpenAI Codex).
 
 ## Prerequisites
 
 - Node.js v18+
 - Rust toolchain
-- [Claude Code CLI](https://claude.ai/download) installed and authenticated
+- **Claude Mode**: [Claude Code CLI](https://claude.ai/download) installed and authenticated
+- **Codex Mode**: Download `codex-x86_64-pc-windows-msvc.exe` from [OpenAI Codex Releases](https://github.com/openai/codex/releases) and place in project root
 
-Note: No `ANTHROPIC_API_KEY` is needed - the app uses Claude Code CLI which handles its own authentication.
+Note: No API keys needed in env - both CLIs handle their own authentication.
 
 ## Commands
 
@@ -142,3 +143,24 @@ Tools available to Claude (implemented in `mascot-mcp/src/main.rs`):
 - `capture_screenshot` - Capture screen (placeholder for future implementation)
 
 The MCP server uses the [rmcp](https://github.com/modelcontextprotocol/rust-sdk) crate for the Model Context Protocol implementation.
+
+## Backend Modes
+
+The app supports two AI backends, switchable via Settings:
+
+### Claude Mode (default)
+- Uses Claude Code CLI (`claude --print --output-format stream-json`)
+- MCP config passed via `--mcp-config`
+- Session resume via `--resume <session-id>`
+
+### Codex Mode
+- Uses bundled `codex-x86_64-pc-windows-msvc.exe`
+- Download from: https://github.com/openai/codex/releases
+- Command: `codex exec --json --full-auto "<prompt>"`
+- MCP config written to `~/.codex/config.toml`
+- Session resume via `codex exec resume <thread-id>`
+
+**Implementation files:**
+- `src-tauri/src/claude_runner.rs` - Claude CLI integration
+- `src-tauri/src/codex_runner.rs` - Codex CLI integration
+- `src-tauri/src/state.rs` - `BackendMode` enum and session state

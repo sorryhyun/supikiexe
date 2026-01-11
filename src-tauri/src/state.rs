@@ -4,8 +4,22 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
+/// Backend mode enum
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum BackendMode {
+    #[default]
+    Claude,
+    Codex,
+}
+
+/// Current backend mode (Claude or Codex)
+pub static BACKEND_MODE: Mutex<BackendMode> = Mutex::new(BackendMode::Claude);
+
 /// Current session ID (maintained by Claude CLI, cached here)
 pub static SESSION_ID: Mutex<Option<String>> = Mutex::new(None);
+
+/// Current Codex session/thread ID (separate from Claude session)
+pub static CODEX_SESSION_ID: Mutex<Option<String>> = Mutex::new(None);
 
 /// Dev mode flag (Claude Code features enabled)
 pub static DEV_MODE: Mutex<bool> = Mutex::new(false);
@@ -35,6 +49,22 @@ pub fn save_session_to_disk(session_id: &str) {
         }
         let _ = fs::write(&path, session_id);
         println!("[Rust] Session saved to {:?}", path);
+    }
+}
+
+/// Get the Codex session file path for persistence
+pub fn get_codex_session_file_path() -> Option<PathBuf> {
+    dirs::data_local_dir().map(|d| d.join("claude-mascot").join("codex-session.txt"))
+}
+
+/// Save Codex session ID to disk
+pub fn save_codex_session_to_disk(session_id: &str) {
+    if let Some(path) = get_codex_session_file_path() {
+        if let Some(parent) = path.parent() {
+            let _ = fs::create_dir_all(parent);
+        }
+        let _ = fs::write(&path, session_id);
+        println!("[Rust] Codex session saved to {:?}", path);
     }
 }
 
@@ -105,6 +135,53 @@ mod tests {
         {
             let mut supiki_mode = SUPIKI_MODE.lock().unwrap();
             *supiki_mode = original;
+        }
+    }
+
+    #[test]
+    fn test_backend_mode_mutex_operations() {
+        // Test that backend mode mutex works correctly
+        let original = *BACKEND_MODE.lock().unwrap();
+        {
+            let mut backend_mode = BACKEND_MODE.lock().unwrap();
+            *backend_mode = BackendMode::Codex;
+        }
+        {
+            let backend_mode = BACKEND_MODE.lock().unwrap();
+            assert_eq!(*backend_mode, BackendMode::Codex);
+        }
+        // Restore original
+        {
+            let mut backend_mode = BACKEND_MODE.lock().unwrap();
+            *backend_mode = original;
+        }
+    }
+
+    #[test]
+    fn test_codex_session_id_mutex_operations() {
+        // Test that Codex session ID mutex works correctly
+        {
+            let mut session = CODEX_SESSION_ID.lock().unwrap();
+            *session = Some("codex-thread-456".to_string());
+        }
+        {
+            let session = CODEX_SESSION_ID.lock().unwrap();
+            assert_eq!(session.clone(), Some("codex-thread-456".to_string()));
+        }
+        // Clean up
+        {
+            let mut session = CODEX_SESSION_ID.lock().unwrap();
+            *session = None;
+        }
+    }
+
+    #[test]
+    fn test_get_codex_session_file_path() {
+        let path = get_codex_session_file_path();
+        // Should return Some path on most systems
+        if let Some(p) = path {
+            assert!(p.ends_with("codex-session.txt"));
+            assert!(p.to_string_lossy().contains("claude-mascot"));
         }
     }
 

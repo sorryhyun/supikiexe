@@ -1,17 +1,43 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   loadSettings,
   saveSettings,
   SUPPORTED_LANGUAGES,
   type Settings,
+  type BackendMode,
 } from "../../services/settingsStorage";
+import { commands } from "../../bindings";
 import { useModalWindow } from "../../hooks/useModalWindow";
 import { Modal } from "../modals/Modal";
 import "../../styles/settings.css";
 
 function SettingsWindow() {
   const [settings, setSettings] = useState<Settings>(loadSettings);
+  const [claudeAvailable, setClaudeAvailable] = useState(true);
+  const [codexAvailable, setCodexAvailable] = useState(false);
+
+  // Check CLI availability on mount
+  useEffect(() => {
+    commands.checkClaudeCli().then((result) => {
+      setClaudeAvailable(result.status === "ok");
+    });
+    commands.checkCodexCli().then((result) => {
+      setCodexAvailable(result.status === "ok");
+    });
+
+    // Sync backend mode with Rust state on mount
+    commands.getBackendMode().then((mode) => {
+      setSettings((currentSettings) => {
+        if (mode !== currentSettings.backendMode) {
+          const newSettings = { ...currentSettings, backendMode: mode as BackendMode };
+          saveSettings(newSettings);
+          return newSettings;
+        }
+        return currentSettings;
+      });
+    });
+  }, []);
 
   const handleClose = async () => {
     const win = getCurrentWindow();
@@ -30,6 +56,20 @@ function SettingsWindow() {
     saveSettings(newSettings);
   };
 
+  const handleBackendChange = async (mode: BackendMode) => {
+    // Update Rust backend state
+    const result = await commands.setBackendMode(mode);
+    if (result.status === "ok") {
+      // Clear current session when switching backends
+      await commands.clearAgentSession();
+
+      // Update local state
+      const newSettings = { ...settings, backendMode: mode };
+      setSettings(newSettings);
+      saveSettings(newSettings);
+    }
+  };
+
   return (
     <Modal
       title="Settings"
@@ -38,11 +78,41 @@ function SettingsWindow() {
       onMouseDown={handleDragStart}
       footer={
         <span className="settings-hint">
-          Language preference for Clawd responses
+          Preferences for Clawd responses
         </span>
       }
     >
       <div className="settings-body">
+        <div className="settings-section">
+          <label className="settings-label">AI Backend</label>
+          <div className="settings-backend-list">
+            <button
+              className={`settings-backend-item ${
+                settings.backendMode === "claude" ? "selected" : ""
+              }`}
+              onClick={() => handleBackendChange("claude")}
+              disabled={!claudeAvailable}
+            >
+              <span className="backend-name">Claude</span>
+              {!claudeAvailable && (
+                <span className="backend-unavailable">(not installed)</span>
+              )}
+            </button>
+            <button
+              className={`settings-backend-item ${
+                settings.backendMode === "codex" ? "selected" : ""
+              }`}
+              onClick={() => handleBackendChange("codex")}
+              disabled={!codexAvailable}
+            >
+              <span className="backend-name">Codex</span>
+              {!codexAvailable && (
+                <span className="backend-unavailable">(not installed)</span>
+              )}
+            </button>
+          </div>
+        </div>
+
         <div className="settings-section">
           <label className="settings-label">Language</label>
           <div className="settings-language-list">

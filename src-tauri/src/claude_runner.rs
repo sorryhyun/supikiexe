@@ -11,6 +11,7 @@ use std::thread;
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager};
 
+use crate::claude_command::ClaudeCommandBuilder;
 use crate::state::{save_session_to_disk, DEV_MODE, SESSION_ID, SIDECAR_CWD, SUPIKI_MODE};
 
 /// Streaming JSON events from Claude CLI
@@ -156,43 +157,23 @@ pub fn run_query(app: tauri::AppHandle, prompt: String, images: Vec<String>) -> 
     // Write MCP config with correct executable path
     let mcp_config_path = write_mcp_config(&app)?;
 
-    // Build command arguments
-    let mut args = vec![
-        "--print".to_string(),
-        "--output-format".to_string(),
-        "stream-json".to_string(),
-        "--verbose".to_string(),
-    ];
-
-    // Add MCP config
-    args.push("--mcp-config".to_string());
-    args.push(mcp_config_path.to_string_lossy().to_string());
-
-    // Pre-approve MCP tools
-    args.push("--allowedTools".to_string());
-    args.push("mcp__mascot__set_emotion".to_string());
-    args.push("mcp__mascot__move_to".to_string());
-    args.push("mcp__mascot__capture_screenshot".to_string());
-
-    // Add system prompt
-    args.push("--system-prompt".to_string());
-    args.push(get_system_prompt());
-
-    // Add resume if we have a session
+    // Get session ID
     let session_id = SESSION_ID.lock().unwrap().clone();
-    if let Some(ref sid) = session_id {
-        args.push("--resume".to_string());
-        args.push(sid.clone());
-    }
 
-    // Add the prompt
-    args.push(prompt);
-
-    // Add images as base64 if provided
-    for image in images {
-        args.push("--image".to_string());
-        args.push(image);
-    }
+    // Build command arguments using builder
+    let args = ClaudeCommandBuilder::new()
+        .with_streaming_output()
+        .with_mcp_config(&mcp_config_path)
+        .with_allowed_tools(&[
+            "mcp__mascot__set_emotion",
+            "mcp__mascot__move_to",
+            "mcp__mascot__capture_screenshot",
+        ])
+        .with_system_prompt(get_system_prompt())
+        .with_session_resume(session_id.as_ref())
+        .with_prompt(prompt)
+        .with_images(images)
+        .build();
 
     eprintln!("[Rust] Running claude CLI with {} args", args.len());
 
