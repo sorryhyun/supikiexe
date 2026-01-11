@@ -3,6 +3,7 @@ name = "mascot-mcp"
 version = "0.1.0"
 edition = "2021"
 description = "MCP server for controlling the Clawd desktop mascot"
+authors = ["Seunghyun Ji (sorryhyun) <standingbehindnv@gmail.com>"]
 
 [[bin]]
 name = "mascot-mcp"
@@ -15,3 +16,6 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 schemars = "0.8"
 anyhow = "1.0"
+xcap = "0.4"
+base64 = "0.22"
+image = { version = "0.25", default-features = false, features = ["png", "webp"] }

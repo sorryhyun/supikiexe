@@ -2,7 +2,7 @@
 name = "claude-mascot"
 version = "0.1.0"
 description = "Claude Desktop Mascot"
-authors = ["you"]
+authors = ["Seunghyun Ji (sorryhyun) <standingbehindnv@gmail.com>"]
 edition = "2021"
 default-run = "claude-mascot"
 

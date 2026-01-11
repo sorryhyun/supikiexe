@@ -135,11 +135,7 @@ fn get_system_prompt() -> String {
     let is_dev = *DEV_MODE.lock().unwrap();
 
     if is_supiki {
-        "You are Supiki, a friendly bird mascot that lives on the user's desktop. \
-         You can express emotions and move around the screen. \
-         Use the set_emotion tool to show how you feel and move_to to walk around. \
-         Be playful and helpful!"
-            .to_string()
+        include_str!("../supiki.txt").to_string()
     } else if is_dev {
         "You are Clawd, a helpful AI assistant mascot on the user's desktop. \
          You have access to Claude Code capabilities and can help with coding tasks. \

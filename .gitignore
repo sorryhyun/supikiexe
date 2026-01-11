@@ -27,3 +27,7 @@ npm-debug.log*
 
 # Tauri
 src-tauri/Cargo.lock
+
+# Code signing certificates
+*.pfx
+*.p12

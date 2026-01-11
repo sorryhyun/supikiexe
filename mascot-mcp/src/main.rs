@@ -5,13 +5,17 @@
 //! parses the tool_use events from Claude CLI's output stream.
 
 use std::future::Future;
+use std::io::Cursor;
 
 use anyhow::Result;
+use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
+use image::ImageFormat;
 use rmcp::{
     handler::server::{router::tool::ToolRouter, tool::Parameters},
     model::*,
     schemars, tool, tool_handler, tool_router, ServerHandler, ServiceExt,
 };
+use xcap::Monitor;
 
 /// Request to set the mascot's emotional expression
 #[derive(serde::Deserialize, schemars::JsonSchema)]
@@ -87,16 +91,64 @@ impl MascotService {
     async fn capture_screenshot(
         &self,
         Parameters(req): Parameters<CaptureScreenshotRequest>,
-    ) -> String {
+    ) -> Result<CallToolResult, rmcp::ErrorData> {
         let desc = req
             .description
             .unwrap_or_else(|| "general view".to_string());
-        // In the actual implementation, Tauri will handle the screenshot capture
-        // when it sees this tool_use in the stream
-        format!(
-            "Screenshot captured (looking for: {}). Analyzing the screen contents...",
-            desc
-        )
+
+        // Helper to create error
+        let make_error = |msg: String| {
+            rmcp::ErrorData::new(rmcp::model::ErrorCode::INTERNAL_ERROR, msg, None::<serde_json::Value>)
+        };
+
+        // Get the primary monitor
+        let monitors = Monitor::all().map_err(|e| make_error(format!("Failed to get monitors: {}", e)))?;
+
+        let monitor = monitors
+            .into_iter()
+            .next()
+            .ok_or_else(|| make_error("No monitors found".to_string()))?;
+
+        // Capture the screen
+        let image = monitor
+            .capture_image()
+            .map_err(|e| make_error(format!("Failed to capture screenshot: {}", e)))?;
+
+        // Resize if too large (Claude has limits on image size)
+        // Max ~1MB for MCP, so let's resize to reasonable dimensions
+        let (width, height) = (image.width(), image.height());
+        let max_dim = 1920u32;
+        let resized = if width > max_dim || height > max_dim {
+            let scale = max_dim as f32 / width.max(height) as f32;
+            let new_width = (width as f32 * scale) as u32;
+            let new_height = (height as f32 * scale) as u32;
+            image::imageops::resize(
+                &image,
+                new_width,
+                new_height,
+                image::imageops::FilterType::Triangle,
+            )
+        } else {
+            image::imageops::resize(&image, width, height, image::imageops::FilterType::Triangle)
+        };
+
+        // Encode as WebP for smaller file size
+        let mut webp_data = Cursor::new(Vec::new());
+        resized
+            .write_to(&mut webp_data, ImageFormat::WebP)
+            .map_err(|e| make_error(format!("Failed to encode WebP: {}", e)))?;
+
+        // Base64 encode
+        let base64_data = BASE64.encode(webp_data.into_inner());
+
+        // Return image content with description
+        Ok(CallToolResult::success(vec![
+            Content::text(format!(
+                "Screenshot captured (looking for: {}). Here is what I can see on your screen:",
+                desc
+            )),
+            Content::image(base64_data, "image/webp"),
+        ]))
     }
 }
 
