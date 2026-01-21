@@ -32,5 +32,5 @@ xcap = "0.4"
 image = { version = "0.25", default-features = false, features = ["png", "webp"] }
 
 [target.'cfg(windows)'.dependencies]
-webview2-com = "0.38"
+webview2-com = "0.29"
 windows-core = "0.61"
