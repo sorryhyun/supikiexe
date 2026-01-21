@@ -30,3 +30,7 @@ schemars = "0.8"
 anyhow = "1.0"
 xcap = "0.4"
 image = { version = "0.25", default-features = false, features = ["png", "webp"] }
+
+[target.'cfg(windows)'.dependencies]
+webview2-com = "0.33"
+windows-core = "0.61"

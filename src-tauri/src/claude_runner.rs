@@ -9,7 +9,7 @@ use std::process::{Command, Stdio};
 use std::thread;
 
 use serde::{Deserialize, Serialize};
-use tauri::{Emitter, Manager};
+use tauri::Emitter;
 
 use crate::claude_command::ClaudeCommandBuilder;
 use crate::state::{save_session_to_disk, DEV_MODE, SESSION_ID, SIDECAR_CWD, SUPIKI_MODE};

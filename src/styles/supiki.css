@@ -2,6 +2,16 @@
 
 .supiki-wrapper {
   /* Fixed hit area - does not transform */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+}
+
+.supiki-wrapper img {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none;
 }
 
 .supiki {

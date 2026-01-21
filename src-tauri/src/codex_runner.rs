@@ -65,6 +65,7 @@ pub enum CodexStreamEvent {
 }
 
 /// Codex item types
+#[allow(dead_code)]
 #[derive(Debug, Deserialize, Clone)]
 #[serde(tag = "type")]
 pub enum CodexItem {

@@ -99,6 +99,7 @@
   outline: none;
 }
 
+
 html,
 body,
 #root {
@@ -122,6 +123,8 @@ body,
   justify-content: flex-end;
   cursor: grab;
   user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
 }
 
 .mascot-container:active {

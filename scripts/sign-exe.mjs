@@ -60,18 +60,39 @@ const signtool = findSignTool();
 console.log(`Found signtool: ${signtool}`);
 console.log(`Found ${filesToSign.length} exe(s) to sign\n`);
 
-for (const file of filesToSign) {
-  console.log(`Signing ${file}...`);
-  try {
-    execSync(
-      `"${signtool}" sign /f "${certPath}" /p ${certPassword} /fd sha256 "${file}"`,
-      { stdio: "inherit" }
-    );
-    console.log(`Signed ${file}\n`);
-  } catch (error) {
-    console.error(`Failed to sign ${file}:`, error.message);
-    process.exit(1);
+// Helper to wait
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Sign with retry (handles AV scanner holding file locks)
+async function signWithRetry(file, maxRetries = 3, delayMs = 2000) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      execSync(
+        `"${signtool}" sign /f "${certPath}" /p ${certPassword} /fd sha256 "${file}"`,
+        { stdio: "inherit" }
+      );
+      console.log(`Signed ${file}\n`);
+      return;
+    } catch (error) {
+      if (attempt < maxRetries && error.message.includes("being used by another process")) {
+        console.log(`File locked, retrying in ${delayMs}ms... (attempt ${attempt}/${maxRetries})`);
+        await sleep(delayMs);
+      } else {
+        throw error;
+      }
+    }
   }
 }
 
-console.log("Signing complete!");
+(async () => {
+  for (const file of filesToSign) {
+    console.log(`Signing ${file}...`);
+    try {
+      await signWithRetry(file);
+    } catch (error) {
+      console.error(`Failed to sign ${file}:`, error.message);
+      process.exit(1);
+    }
+  }
+  console.log("Signing complete!");
+})();

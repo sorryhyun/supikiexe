@@ -19,8 +19,9 @@ mod state;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    Manager, WindowEvent,
+    Listener, Manager, WindowEvent,
 };
+
 
 use commands::{
     answer_agent_question, check_claude_cli, check_codex_cli, clear_agent_session,
@@ -186,6 +187,43 @@ pub fn run() {
                     }
                 })
                 .build(app)?;
+
+            // Disable WebView2 status bar (URL tooltip) on Windows for all windows
+            #[cfg(windows)]
+            {
+                fn disable_status_bar(window: &tauri::WebviewWindow) {
+                    let _ = window.with_webview(|webview| unsafe {
+                        if let Ok(core) = webview.controller().CoreWebView2() {
+                            if let Ok(settings) = core.Settings() {
+                                let _ = settings.SetIsStatusBarEnabled(false);
+                                println!("[Rust] Disabled status bar for window");
+                            }
+                        }
+                    });
+                }
+
+                // Disable for main window after a short delay to ensure WebView is ready
+                let app_handle = app.handle().clone();
+                std::thread::spawn(move || {
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                    for (label, window) in app_handle.webview_windows() {
+                        println!("[Rust] Disabling status bar for: {}", label);
+                        disable_status_bar(&window);
+                    }
+                });
+
+                // Also listen for new windows
+                let app_handle2 = app.handle().clone();
+                app.listen("tauri://webview-created", move |_event| {
+                    let handle = app_handle2.clone();
+                    std::thread::spawn(move || {
+                        std::thread::sleep(std::time::Duration::from_millis(100));
+                        for (_, window) in handle.webview_windows() {
+                            disable_status_bar(&window);
+                        }
+                    });
+                });
+            }
 
             Ok(())
         })

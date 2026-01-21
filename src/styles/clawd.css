@@ -7,6 +7,9 @@
   border: none;
   outline: none;
   background: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
 }
 
 /* Hover effect */
