@@ -14,7 +14,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Clawd",
+        "title": " ",
         "width": 160,
         "height": 140,
         "resizable": false,
@@ -40,8 +40,6 @@
       "icons/128x128@2x.png",
       "icons/icon.ico"
     ],
-    "resources": [
-      "../codex-x86_64-pc-windows-msvc.exe"
-    ]
+    "resources": []
   }
 }

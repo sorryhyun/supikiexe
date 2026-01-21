@@ -51,6 +51,8 @@ function Clawd({ animationState, direction, emotion: emotionProp = "neutral", on
       onMouseDown={onMouseDown}
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
+      aria-label=""
+      role="img"
       style={{
         transform: `${direction === "left" ? "scaleX(-1)" : "scaleX(1)"} ${isRotated ? "rotate(-10deg)" : ""}`,
       }}

@@ -10,6 +10,13 @@ import CwdWindow from "./components/windows/CwdWindow";
 import { commands } from "./bindings";
 import "./styles/index.css";
 
+// Suppress WebView2 status bar by clearing window.status
+window.status = "";
+Object.defineProperty(window, "status", {
+  get: () => "",
+  set: () => {},
+});
+
 // Check window type from URL params
 const urlParams = new URLSearchParams(window.location.search);
 const isChatWindow = urlParams.get("chat") === "true";

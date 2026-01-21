@@ -188,27 +188,43 @@ pub fn run() {
                 })
                 .build(app)?;
 
-            // Disable WebView2 status bar (URL tooltip) on Windows for all windows
+            // Disable WebView2 status bar and other browser UI on Windows
             #[cfg(windows)]
             {
-                fn disable_status_bar(window: &tauri::WebviewWindow) {
-                    let _ = window.with_webview(|webview| unsafe {
-                        if let Ok(core) = webview.controller().CoreWebView2() {
-                            if let Ok(settings) = core.Settings() {
-                                let _ = settings.SetIsStatusBarEnabled(false);
-                                println!("[Rust] Disabled status bar for window");
+                use webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Settings;
+                use windows_core::Interface;
+
+                fn configure_webview(window: &tauri::WebviewWindow) {
+                    let result = window.with_webview(|webview| unsafe {
+                        match webview.controller().CoreWebView2() {
+                            Ok(core) => {
+                                match core.Settings() {
+                                    Ok(settings) => {
+                                        // Cast to ICoreWebView2Settings to access all methods
+                                        if let Ok(settings) = settings.cast::<ICoreWebView2Settings>() {
+                                            let _ = settings.SetIsStatusBarEnabled(false);
+                                            let _ = settings.SetAreDefaultContextMenusEnabled(false);
+                                            println!("[Rust] WebView2 settings configured");
+                                        }
+                                    }
+                                    Err(e) => eprintln!("[Rust] Failed to get settings: {:?}", e),
+                                }
                             }
+                            Err(e) => eprintln!("[Rust] Failed to get CoreWebView2: {:?}", e),
                         }
                     });
+                    if let Err(e) = result {
+                        eprintln!("[Rust] Failed to access webview: {:?}", e);
+                    }
                 }
 
-                // Disable for main window after a short delay to ensure WebView is ready
+                // Configure for main window after a delay to ensure WebView is fully ready
                 let app_handle = app.handle().clone();
                 std::thread::spawn(move || {
-                    std::thread::sleep(std::time::Duration::from_millis(100));
+                    std::thread::sleep(std::time::Duration::from_millis(500));
                     for (label, window) in app_handle.webview_windows() {
-                        println!("[Rust] Disabling status bar for: {}", label);
-                        disable_status_bar(&window);
+                        println!("[Rust] Configuring WebView2 for: {}", label);
+                        configure_webview(&window);
                     }
                 });
 
@@ -217,9 +233,9 @@ pub fn run() {
                 app.listen("tauri://webview-created", move |_event| {
                     let handle = app_handle2.clone();
                     std::thread::spawn(move || {
-                        std::thread::sleep(std::time::Duration::from_millis(100));
+                        std::thread::sleep(std::time::Duration::from_millis(500));
                         for (_, window) in handle.webview_windows() {
-                            disable_status_bar(&window);
+                            configure_webview(&window);
                         }
                     });
                 });
