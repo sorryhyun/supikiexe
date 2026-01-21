@@ -14,7 +14,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Claude Mascot",
+        "title": "",
         "width": 160,
         "height": 140,
         "resizable": false,
@@ -41,7 +41,6 @@
       "icons/icon.ico"
     ],
     "resources": [
-      "../mascot-mcp/target/release/mascot-mcp.exe",
       "../codex-x86_64-pc-windows-msvc.exe"
     ]
   }

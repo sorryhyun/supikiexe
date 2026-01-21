@@ -6,12 +6,14 @@
 //! - `state`: Global application state and session persistence
 //! - `claude_runner`: Claude CLI process management
 //! - `commands`: Tauri IPC commands exposed to the frontend
+//! - `mcp_server`: MCP server for mascot control (run with --mcp flag)
 
 mod claude_command;
 mod claude_runner;
 mod codex_command;
 mod codex_runner;
 mod commands;
+pub mod mcp_server;
 mod state;
 
 use tauri::{
@@ -200,4 +202,14 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+/// Run the MCP server (called when --mcp flag is passed)
+pub fn run_mcp_server() {
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap()
+        .block_on(mcp_server::run())
+        .expect("MCP server failed");
 }

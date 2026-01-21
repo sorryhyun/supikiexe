@@ -1,9 +1,21 @@
+import { useEffect } from "react";
+import { listen } from "@tauri-apps/api/event";
 import { MascotApp } from "./MascotApp";
 import Supiki from "./mascot/Supiki";
 import { useSupikiSounds } from "../hooks/useSupikiSounds";
 
 function SupikiApp() {
-  const { playEmotionSound } = useSupikiSounds();
+  const { playEmotionSound, playCompletionSound } = useSupikiSounds();
+
+  // Play ganbatta sound when agent completes
+  useEffect(() => {
+    const unlisten = listen("agent-result", () => {
+      playCompletionSound();
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [playCompletionSound]);
 
   return (
     <MascotApp

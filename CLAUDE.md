@@ -22,7 +22,7 @@ npm install          # Install dependencies
 npm run dev          # Run in development mode (Tauri + Vite)
 npm run dev:clawd    # Dev mode with CLAWD_DEV_MODE=1
 npm run dev-supiki   # Dev mode for Supiki mascot variant
-npm run build        # Build for production (builds MCP server + Tauri)
+npm run build        # Build for production
 npm run vite:build   # Build frontend only (TypeScript + Vite)
 npm run icons        # Regenerate icons from source image
 ```
@@ -35,7 +35,6 @@ npm run lint:fix     # Run ESLint with auto-fix
 ```bash
 cd src-tauri && cargo build    # Build Rust backend
 cd src-tauri && cargo check    # Type-check Rust code
-cd mascot-mcp && cargo build   # Build MCP server
 ```
 
 ```bash
@@ -45,10 +44,9 @@ make codegen-tauri   # Regenerate TypeScript bindings from Rust commands
 ## Testing
 
 ```bash
-make test            # Run all tests (TypeScript + Rust + MCP)
+make test            # Run all tests (TypeScript + Rust)
 make test-ts         # Run TypeScript tests only
 make test-rust       # Run Rust tests only
-make test-mcp        # Run MCP server tests only
 npm run test         # Run TypeScript tests via npm
 npm run test:watch   # Run TypeScript tests in watch mode
 ```
@@ -79,7 +77,7 @@ npm run test:watch   # Run TypeScript tests in watch mode
                        │ stdio (MCP protocol)
                        ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  mascot-mcp.exe (Rust binary, ~500KB)                            │
+│  Claude Mascot.exe --mcp (same binary, MCP server mode)          │
 │  └── Provides: set_emotion, move_to, capture_screenshot          │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -87,8 +85,7 @@ npm run test:watch   # Run TypeScript tests in watch mode
 | Directory | Description |
 |-----------|-------------|
 | `src/` | React frontend - mascot UI, physics, state machine, chat components |
-| `src-tauri/` | Rust backend - Tauri app, system tray, Claude CLI runner |
-| `mascot-mcp/` | Rust MCP server - tools for controlling the mascot |
+| `src-tauri/` | Rust backend - Tauri app, system tray, Claude CLI runner, MCP server |
 
 ## Type-Safe IPC (tauri-specta)
 
@@ -137,10 +134,14 @@ claude --print \
 
 ## MCP Server Tools
 
-Tools available to Claude (implemented in `mascot-mcp/src/main.rs`):
+The main executable runs in two modes:
+- **GUI mode** (default): Normal Tauri desktop application
+- **MCP mode** (`--mcp` flag): MCP server via stdio for Claude CLI
+
+Tools available to Claude (implemented in `src-tauri/src/mcp_server.rs`):
 - `set_emotion` - Control Clawd's emotional expression (happy, sad, excited, thinking, etc.)
 - `move_to` - Walk Clawd to screen position (left, right, center, or x-coordinate)
-- `capture_screenshot` - Capture screen (placeholder for future implementation)
+- `capture_screenshot` - Capture screen for visual context
 
 The MCP server uses the [rmcp](https://github.com/modelcontextprotocol/rust-sdk) crate for the Model Context Protocol implementation.
 
@@ -163,4 +164,5 @@ The app supports two AI backends, switchable via Settings:
 **Implementation files:**
 - `src-tauri/src/claude_runner.rs` - Claude CLI integration
 - `src-tauri/src/codex_runner.rs` - Codex CLI integration
+- `src-tauri/src/mcp_server.rs` - MCP server for mascot control
 - `src-tauri/src/state.rs` - `BackendMode` enum and session state

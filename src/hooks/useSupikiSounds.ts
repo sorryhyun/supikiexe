@@ -6,12 +6,14 @@ import goodSound from "../supiki/good.wav";
 import euSound from "../supiki/eu.wav";
 import ueSound from "../supiki/ue.wav";
 import dontpushSound from "../supiki/dontpush.wav";
+import ganbattaSound from "../supiki/ganbatta.wav";
 
 export type SupikiSoundTrigger = "click" | "emotion";
 
 interface UseSupikiSoundsReturn {
   playClickSound: () => void;
   playEmotionSound: (emotion: Emotion) => void;
+  playCompletionSound: () => void;
 }
 
 export function useSupikiSounds(): UseSupikiSoundsReturn {
@@ -76,8 +78,14 @@ export function useSupikiSounds(): UseSupikiSoundsReturn {
     }
   }, [playSound]);
 
+  // Play sound when agent completes (ganbatta = "you did your best!")
+  const playCompletionSound = useCallback(() => {
+    playSound(ganbattaSound);
+  }, [playSound]);
+
   return {
     playClickSound,
     playEmotionSound,
+    playCompletionSound,
   };
 }

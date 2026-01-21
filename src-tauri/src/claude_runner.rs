@@ -67,37 +67,15 @@ pub struct ToolUseEvent {
     pub input: serde_json::Value,
 }
 
-/// Get the path to mascot-mcp executable
-fn get_mcp_exe_path(app: &tauri::AppHandle) -> Option<PathBuf> {
-    // In production, exe is in resources directory
-    if let Ok(resource_dir) = app.path().resource_dir() {
-        let exe_path = resource_dir.join("mascot-mcp.exe");
-        if exe_path.exists() {
-            return Some(exe_path);
-        }
-    }
-
-    // In development, exe is in target directory
-    let dev_paths = vec![
-        PathBuf::from("../mascot-mcp/target/release/mascot-mcp.exe"),
-        PathBuf::from("../mascot-mcp/target/debug/mascot-mcp.exe"),
-        PathBuf::from("mascot-mcp/target/release/mascot-mcp.exe"),
-        PathBuf::from("mascot-mcp/target/debug/mascot-mcp.exe"),
-    ];
-
-    for path in dev_paths {
-        if path.exists() {
-            return Some(path);
-        }
-    }
-
-    None
+/// Get the path to the current executable (which runs MCP server with --mcp flag)
+fn get_mcp_exe_path(_app: &tauri::AppHandle) -> Option<PathBuf> {
+    std::env::current_exe().ok()
 }
 
-/// Write the MCP config file with the correct path to mascot-mcp executable
+/// Write the MCP config file with the current executable path and --mcp flag
 fn write_mcp_config(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     let mcp_exe_path =
-        get_mcp_exe_path(app).ok_or("Could not find mascot-mcp executable")?;
+        get_mcp_exe_path(app).ok_or("Could not find current executable")?;
 
     let mcp_exe_str = mcp_exe_path
         .canonicalize()
@@ -116,7 +94,7 @@ fn write_mcp_config(app: &tauri::AppHandle) -> Result<PathBuf, String> {
         "mcpServers": {
             "mascot": {
                 "command": mcp_exe_str,
-                "args": []
+                "args": ["--mcp"]
             }
         }
     });
