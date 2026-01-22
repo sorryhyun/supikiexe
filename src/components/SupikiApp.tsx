@@ -7,9 +7,9 @@ import { useSupikiSounds } from "../hooks/useSupikiSounds";
 function SupikiApp() {
   const { playEmotionSound, playCompletionSound } = useSupikiSounds();
 
-  // Play ganbatta sound when agent completes
+  // Play ganbatta sound when clicking "Bye"
   useEffect(() => {
-    const unlisten = listen("agent-result", () => {
+    const unlisten = listen("bye-clicked", () => {
       playCompletionSound();
     });
     return () => {

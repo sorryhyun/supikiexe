@@ -79,7 +79,14 @@ export function useModalWindow(options: UseModalWindowOptions = {}) {
     const tagName = target.tagName.toLowerCase();
 
     // Don't drag if clicking on interactive elements
-    if (tagName === "button" || tagName === "input" || tagName === "textarea" || tagName === "select") {
+    if (tagName === "input" || tagName === "textarea" || tagName === "select") {
+      return;
+    }
+
+    // Check if clicking on or inside a button
+    const closestButton = target.closest("button") as HTMLButtonElement | null;
+    if (closestButton && !closestButton.disabled) {
+      // Don't drag if clicking on an enabled button
       return;
     }
 

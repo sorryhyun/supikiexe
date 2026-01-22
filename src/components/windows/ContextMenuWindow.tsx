@@ -1,4 +1,5 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { emit } from "@tauri-apps/api/event";
 import {
   HISTORY_LIST_WIDTH,
   HISTORY_LIST_HEIGHT,
@@ -58,7 +59,11 @@ function ContextMenuWindow() {
   };
 
   const handleExit = async () => {
-    // Invoke quit first - app will exit before this returns
+    // Emit bye-clicked event for sound effect
+    await emit("bye-clicked");
+    // Small delay to let the sound start playing
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    // Invoke quit - app will exit before this returns
     commands.quitApp();
   };
 

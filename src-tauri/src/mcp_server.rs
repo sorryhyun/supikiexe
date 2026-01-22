@@ -84,9 +84,9 @@ impl MascotService {
         )
     }
 
-    /// Capture a screenshot of the user's screen.
-    /// Use this when you need to see what the user is looking at.
-    #[tool(description = "Capture a screenshot of the user's screen to see what they're looking at")]
+    /// Capture a screenshot of all monitors.
+    /// Use this when you need to see what the user is looking at across all displays.
+    #[tool(description = "Capture a screenshot of all monitors to see what the user is looking at")]
     async fn capture_screenshot(
         &self,
         Parameters(req): Parameters<CaptureScreenshotRequest>,
@@ -104,36 +104,70 @@ impl MascotService {
             )
         };
 
-        // Get the primary monitor
+        // Get all monitors
         let monitors =
             Monitor::all().map_err(|e| make_error(format!("Failed to get monitors: {}", e)))?;
 
-        let monitor = monitors
-            .into_iter()
-            .next()
-            .ok_or_else(|| make_error("No monitors found".to_string()))?;
+        if monitors.is_empty() {
+            return Err(make_error("No monitors found".to_string()));
+        }
 
-        // Capture the screen
-        let image = monitor
-            .capture_image()
-            .map_err(|e| make_error(format!("Failed to capture screenshot: {}", e)))?;
+        // Capture all monitors and collect their images with positions
+        let mut captures: Vec<(i32, i32, image::RgbaImage)> = Vec::new();
+        for monitor in &monitors {
+            let x = monitor
+                .x()
+                .map_err(|e| make_error(format!("Failed to get monitor x position: {}", e)))?;
+            let y = monitor
+                .y()
+                .map_err(|e| make_error(format!("Failed to get monitor y position: {}", e)))?;
+            let img = monitor
+                .capture_image()
+                .map_err(|e| make_error(format!("Failed to capture monitor: {}", e)))?;
+            captures.push((x, y, img));
+        }
+
+        // Calculate the bounding box for all monitors
+        let mut min_x = i32::MAX;
+        let mut min_y = i32::MAX;
+        let mut max_x = i32::MIN;
+        let mut max_y = i32::MIN;
+
+        for (x, y, img) in &captures {
+            min_x = min_x.min(*x);
+            min_y = min_y.min(*y);
+            max_x = max_x.max(*x + img.width() as i32);
+            max_y = max_y.max(*y + img.height() as i32);
+        }
+
+        // Create a canvas that fits all monitors
+        let canvas_width = (max_x - min_x) as u32;
+        let canvas_height = (max_y - min_y) as u32;
+        let mut canvas = image::RgbaImage::new(canvas_width, canvas_height);
+
+        // Paste each monitor's capture onto the canvas at the correct position
+        for (x, y, img) in captures {
+            let paste_x = (x - min_x) as u32;
+            let paste_y = (y - min_y) as u32;
+            image::imageops::overlay(&mut canvas, &img, paste_x as i64, paste_y as i64);
+        }
 
         // Resize if too large (Claude has limits on image size)
         // Max ~1MB for MCP, so let's resize to reasonable dimensions
-        let (width, height) = (image.width(), image.height());
-        let max_dim = 1920u32;
+        let (width, height) = (canvas.width(), canvas.height());
+        let max_dim = 2560u32; // Slightly larger for multi-monitor setups
         let resized = if width > max_dim || height > max_dim {
             let scale = max_dim as f32 / width.max(height) as f32;
             let new_width = (width as f32 * scale) as u32;
             let new_height = (height as f32 * scale) as u32;
             image::imageops::resize(
-                &image,
+                &canvas,
                 new_width,
                 new_height,
                 image::imageops::FilterType::Triangle,
             )
         } else {
-            image::imageops::resize(&image, width, height, image::imageops::FilterType::Triangle)
+            canvas
         };
 
         // Encode as WebP for smaller file size
@@ -146,10 +180,11 @@ impl MascotService {
         let base64_data = BASE64.encode(webp_data.into_inner());
 
         // Return image content with description
+        let monitor_count = monitors.len();
         Ok(CallToolResult::success(vec![
             Content::text(format!(
-                "Screenshot captured (looking for: {}). Here is what I can see on your screen:",
-                desc
+                "Screenshot captured from {} monitor(s) (looking for: {}). Here is what I can see on your screen:",
+                monitor_count, desc
             )),
             Content::image(base64_data, "image/webp"),
         ]))
