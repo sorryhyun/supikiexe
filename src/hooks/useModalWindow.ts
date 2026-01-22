@@ -9,6 +9,8 @@ interface UseModalWindowOptions {
   blurDelay?: number;
   /** Ref to check if blur should be skipped (e.g., when a child modal is open) */
   skipBlurRef?: React.RefObject<boolean>;
+  /** CSS selector for elements that should not trigger drag (e.g., ".list-item") */
+  skipDragSelector?: string;
 }
 
 /**
@@ -19,7 +21,7 @@ interface UseModalWindowOptions {
  * - User-initiated drag tracking
  */
 export function useModalWindow(options: UseModalWindowOptions = {}) {
-  const { onEscape, onBlur, closeOnBlur = false, blurDelay = 150, skipBlurRef } = options;
+  const { onEscape, onBlur, closeOnBlur = false, blurDelay = 150, skipBlurRef, skipDragSelector } = options;
 
   // Track whether user initiated a drag (useful for move event handling)
   const userInitiatedDragRef = useRef(false);
@@ -81,10 +83,15 @@ export function useModalWindow(options: UseModalWindowOptions = {}) {
       return;
     }
 
+    // Don't drag if clicking on elements matching skipDragSelector
+    if (skipDragSelector && target.closest(skipDragSelector)) {
+      return;
+    }
+
     const win = getCurrentWindow();
     userInitiatedDragRef.current = true;
     await win.startDragging();
-  }, []);
+  }, [skipDragSelector]);
 
   return { handleDragStart, userInitiatedDragRef };
 }

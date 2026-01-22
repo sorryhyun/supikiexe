@@ -14,8 +14,8 @@ import "../../styles/settings.css";
 
 function SettingsWindow() {
   const [settings, setSettings] = useState<Settings>(loadSettings);
-  const [claudeAvailable, setClaudeAvailable] = useState(true);
-  const [codexAvailable, setCodexAvailable] = useState(false);
+  const [claudeAvailable, setClaudeAvailable] = useState<boolean | null>(null);
+  const [codexAvailable, setCodexAvailable] = useState<boolean | null>(null);
 
   // Check CLI availability on mount
   useEffect(() => {
@@ -91,10 +91,15 @@ function SettingsWindow() {
                 settings.backendMode === "claude" ? "selected" : ""
               }`}
               onClick={() => handleBackendChange("claude")}
-              disabled={!claudeAvailable}
+              disabled={claudeAvailable !== true}
             >
               <span className="backend-name">Claude</span>
-              {!claudeAvailable && (
+              {claudeAvailable === null && (
+                <span className="backend-status">
+                  <span className="backend-spinner" />
+                </span>
+              )}
+              {claudeAvailable === false && (
                 <span className="backend-unavailable">(not installed)</span>
               )}
             </button>
@@ -103,10 +108,15 @@ function SettingsWindow() {
                 settings.backendMode === "codex" ? "selected" : ""
               }`}
               onClick={() => handleBackendChange("codex")}
-              disabled={!codexAvailable}
+              disabled={codexAvailable !== true}
             >
               <span className="backend-name">Codex</span>
-              {!codexAvailable && (
+              {codexAvailable === null && (
+                <span className="backend-status">
+                  <span className="backend-spinner" />
+                </span>
+              )}
+              {codexAvailable === false && (
                 <span className="backend-unavailable">(not installed)</span>
               )}
             </button>

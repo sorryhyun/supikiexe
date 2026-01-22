@@ -5,7 +5,6 @@ node_modules/
 dist/
 artifacts/
 src-tauri/target/
-mascot-mcp/target/
 # IDE
 .vscode/
 .idea/

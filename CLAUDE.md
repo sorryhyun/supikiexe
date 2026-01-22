@@ -126,7 +126,7 @@ claude --print \
   "user prompt here"
 ```
 
-**Streaming JSON events** (parsed in `claude_runner.rs`):
+**Streaming JSON events** (parsed in `claude/runner.rs`):
 - `system` - Session initialization with session_id
 - `assistant` - Text content and tool_use blocks
 - `user` - Tool results
@@ -162,7 +162,7 @@ The app supports two AI backends, switchable via Settings:
 - Session resume via `codex exec resume <thread-id>`
 
 **Implementation files:**
-- `src-tauri/src/claude_runner.rs` - Claude CLI integration
-- `src-tauri/src/codex_runner.rs` - Codex CLI integration
+- `src-tauri/src/claude/` - Claude CLI integration (command builder + runner)
+- `src-tauri/src/codex/` - Codex CLI integration (command builder + runner)
 - `src-tauri/src/mcp_server.rs` - MCP server for mascot control
 - `src-tauri/src/state.rs` - `BackendMode` enum and session state

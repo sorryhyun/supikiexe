@@ -7,8 +7,8 @@ use std::process::Command;
 
 use tauri::Manager;
 
-use crate::claude_runner::{check_claude_available, clear_session as clear_claude_session, run_query as run_claude_query};
-use crate::codex_runner::{check_codex_available_with_app, clear_session as clear_codex_session, run_query as run_codex_query};
+use crate::claude::{check_claude_available, clear_session as clear_claude_session, run_query as run_claude_query};
+use crate::codex::{check_codex_available_with_app, clear_session as clear_codex_session, run_query as run_codex_query};
 use crate::state::{BackendMode, BACKEND_MODE, CODEX_SESSION_ID, DEV_MODE, MAX_RECENT_CWDS, RECENT_CWDS, SESSION_ID, SIDECAR_CWD, SUPIKI_MODE};
 
 /// Send a message to the AI backend (Claude or Codex)

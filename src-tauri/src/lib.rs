@@ -8,10 +8,8 @@
 //! - `commands`: Tauri IPC commands exposed to the frontend
 //! - `mcp_server`: MCP server for mascot control (run with --mcp flag)
 
-mod claude_command;
-mod claude_runner;
-mod codex_command;
-mod codex_runner;
+mod claude;
+mod codex;
 mod commands;
 pub mod mcp_server;
 mod state;
@@ -97,7 +95,7 @@ pub fn run() {
     }
 
     // Check if Claude CLI is available
-    match claude_runner::check_claude_available() {
+    match claude::check_claude_available() {
         Ok(version) => {
             println!("[Rust] Claude CLI available: {}", version);
         }
@@ -108,7 +106,7 @@ pub fn run() {
     }
 
     // Check if Codex CLI is available
-    match codex_runner::check_codex_available() {
+    match codex::check_codex_available() {
         Ok(version) => {
             println!("[Rust] Codex CLI available: {}", version);
         }
