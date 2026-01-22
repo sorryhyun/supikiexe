@@ -20,7 +20,7 @@ export interface ToolUseInfo {
 // Enhanced chat message with agent metadata
 export interface AgentChatMessage {
   id: string;
-  sender: "user" | "clawd";
+  sender: "user" | "mascot";
   content: string;
   timestamp: number;
   // Agent-specific metadata

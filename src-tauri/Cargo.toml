@@ -1,13 +1,13 @@
 [package]
-name = "claude-mascot"
+name = "supiki"
 version = "0.1.0"
-description = "Claude Desktop Mascot"
+description = "Supiki Desktop Mascot"
 authors = ["Seunghyun Ji (sorryhyun) <standingbehindnv@gmail.com>"]
 edition = "2021"
-default-run = "claude-mascot"
+default-run = "supiki"
 
 [lib]
-name = "claude_mascot_lib"
+name = "supiki_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

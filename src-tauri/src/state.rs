@@ -38,7 +38,7 @@ pub const MAX_RECENT_CWDS: usize = 5;
 
 /// Get the session file path for persistence
 pub fn get_session_file_path() -> Option<PathBuf> {
-    dirs::data_local_dir().map(|d| d.join("claude-mascot").join("session.txt"))
+    dirs::data_local_dir().map(|d| d.join("supiki").join("session.txt"))
 }
 
 /// Save session ID to disk
@@ -54,7 +54,7 @@ pub fn save_session_to_disk(session_id: &str) {
 
 /// Get the Codex session file path for persistence
 pub fn get_codex_session_file_path() -> Option<PathBuf> {
-    dirs::data_local_dir().map(|d| d.join("claude-mascot").join("codex-session.txt"))
+    dirs::data_local_dir().map(|d| d.join("supiki").join("codex-session.txt"))
 }
 
 /// Save Codex session ID to disk
@@ -78,7 +78,7 @@ mod tests {
         // Should return Some path on most systems
         if let Some(p) = path {
             assert!(p.ends_with("session.txt"));
-            assert!(p.to_string_lossy().contains("claude-mascot"));
+            assert!(p.to_string_lossy().contains("supiki"));
         }
     }
 
@@ -181,7 +181,7 @@ mod tests {
         // Should return Some path on most systems
         if let Some(p) = path {
             assert!(p.ends_with("codex-session.txt"));
-            assert!(p.to_string_lossy().contains("claude-mascot"));
+            assert!(p.to_string_lossy().contains("supiki"));
         }
     }
 

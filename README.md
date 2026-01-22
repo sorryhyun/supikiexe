@@ -1,6 +1,6 @@
-# Claude Mascot
+# Supiki
 
-Tauri v2 + React + TypeScript로 만든 데스크톱 마스코트 앱입니다. Clawd가 화면 위를 돌아다닙니다.
+Tauri v2 + React + TypeScript로 만든 데스크톱 마스코트 앱입니다. Supiki가 화면 위를 돌아다닙니다.
 
 ## 기능
 
@@ -18,8 +18,8 @@ Tauri v2 + React + TypeScript로 만든 데스크톱 마스코트 앱입니다. 
 
 ### 실행
 
-1. [Releases](https://github.com/anthropics/claude-mascot/releases)에서 최신 버전 다운로드
-2. `Claude Mascot.exe` 실행
+1. [Releases](https://github.com/anthropics/supiki/releases)에서 최신 버전 다운로드
+2. `Supiki.exe` 실행
 
 ## 개발 환경 설정
 
@@ -75,16 +75,16 @@ npm run icons        # 아이콘 재생성
 
 ## 사용 방법
 
-- **클릭**: Clawd를 클릭하면 채팅창이 열립니다
-- **채팅창 닫기**: Clawd를 다시 클릭하거나 채팅창 바깥을 클릭
+- **클릭**: Supiki를 클릭하면 채팅창이 열립니다
+- **채팅창 닫기**: Supiki를 다시 클릭하거나 채팅창 바깥을 클릭
 - **더블클릭**: 물리 엔진 on/off 전환
-- **드래그**: Clawd를 드래그해서 원하는 위치로 이동
+- **드래그**: Supiki를 드래그해서 원하는 위치로 이동
 
 ## 아키텍처
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Claude Mascot.exe (Tauri)                     │
+│                       Supiki.exe (Tauri)                         │
 ├─────────────────────────────────────────────────────────────────┤
 │  Frontend (React)        │  Backend (Rust)                       │
 │  - 마스코트 UI           │  - Claude CLI 실행                    │

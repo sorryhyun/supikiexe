@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Claude Mascot is a desktop mascot application featuring "Clawd" - an animated character that lives on the user's desktop. Built with Tauri v2 (Rust backend) + React + TypeScript (frontend) + AI CLI backends (Claude Code or OpenAI Codex).
+Supiki is a desktop mascot application featuring animated characters that live on the user's desktop. Built with Tauri v2 (Rust backend) + React + TypeScript (frontend) + AI CLI backends (Claude Code or OpenAI Codex). The primary mascot is "Supiki", with "Clawd" available as a secondary option.
 
 ## Prerequisites
 
@@ -20,8 +20,8 @@ Note: No API keys needed in env - both CLIs handle their own authentication.
 ```bash
 npm install          # Install dependencies
 npm run dev          # Run in development mode (Tauri + Vite)
-npm run dev:clawd    # Dev mode with CLAWD_DEV_MODE=1
-npm run dev-supiki   # Dev mode for Supiki mascot variant
+npm run dev:clawd    # Dev mode with CLAWD_DEV_MODE=1 (secondary mascot)
+npm run dev-supiki   # Dev mode for Supiki (primary mascot)
 npm run build        # Build for production
 npm run vite:build   # Build frontend only (TypeScript + Vite)
 npm run icons        # Regenerate icons from source image
@@ -55,7 +55,7 @@ npm run test:watch   # Run TypeScript tests in watch mode
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Claude Mascot.exe (Tauri)                     │
+│                       Supiki.exe (Tauri)                         │
 ├─────────────────────────────────────────────────────────────────┤
 │  Frontend (React)                                                │
 │  └── Chat UI, mascot rendering, event listeners                  │
@@ -77,7 +77,7 @@ npm run test:watch   # Run TypeScript tests in watch mode
                        │ stdio (MCP protocol)
                        ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  Claude Mascot.exe --mcp (same binary, MCP server mode)          │
+│  Supiki.exe --mcp (same binary, MCP server mode)                 │
 │  └── Provides: set_emotion, move_to, capture_screenshot          │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -121,7 +121,7 @@ claude --print \
   --verbose \
   --mcp-config "path/to/mascot-mcp.json" \
   --allowedTools "mcp__mascot__set_emotion" "mcp__mascot__move_to" \
-  --system-prompt "You are Clawd..." \
+  --system-prompt "You are Supiki..." \
   --resume <session-id> \
   "user prompt here"
 ```
@@ -139,8 +139,8 @@ The main executable runs in two modes:
 - **MCP mode** (`--mcp` flag): MCP server via stdio for Claude CLI
 
 Tools available to Claude (implemented in `src-tauri/src/mcp_server.rs`):
-- `set_emotion` - Control Clawd's emotional expression (happy, sad, excited, thinking, etc.)
-- `move_to` - Walk Clawd to screen position (left, right, center, or x-coordinate)
+- `set_emotion` - Control the mascot's emotional expression (happy, sad, excited, thinking, etc.)
+- `move_to` - Walk the mascot to screen position (left, right, center, or x-coordinate)
 - `capture_screenshot` - Capture screen for visual context
 
 The MCP server uses the [rmcp](https://github.com/modelcontextprotocol/rust-sdk) crate for the Model Context Protocol implementation.

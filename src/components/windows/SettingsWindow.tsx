@@ -78,7 +78,7 @@ function SettingsWindow() {
       onMouseDown={handleDragStart}
       footer={
         <span className="settings-hint">
-          Preferences for Clawd responses
+          Preferences for Supiki responses
         </span>
       }
     >

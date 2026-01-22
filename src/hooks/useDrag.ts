@@ -6,7 +6,7 @@ import { DRAG_THRESHOLD } from "../constants";
 export interface DragState {
   isDragging: boolean;
   wasDragged: boolean;
-  startDrag: (e: React.MouseEvent, onClawd?: boolean) => void;
+  startDrag: (e: React.MouseEvent, onMascot?: boolean) => void;
   resetDragState: () => void;
 }
 
@@ -19,7 +19,7 @@ export function useDrag(callbacks: DragCallbacks = {}): DragState {
   const [isDragging, setIsDragging] = useState(false);
   const dragStartPos = useRef<{ x: number; y: number } | null>(null);
   const wasDragged = useRef(false);
-  const clickedOnClawd = useRef(false);
+  const clickedOnMascot = useRef(false);
 
   useEffect(() => {
     if (!isDragging) return;
@@ -46,14 +46,14 @@ export function useDrag(callbacks: DragCallbacks = {}): DragState {
 
     const handleMouseUp = () => {
       setIsDragging(false);
-      const wasOnClawd = clickedOnClawd.current;
+      const wasOnMascot = clickedOnMascot.current;
       const didDrag = wasDragged.current;
 
       dragStartPos.current = null;
-      clickedOnClawd.current = false;
+      clickedOnMascot.current = false;
 
-      // If clicked on Clawd but didn't drag, don't trigger drag end
-      if (wasOnClawd && !didDrag) {
+      // If clicked on mascot but didn't drag, don't trigger drag end
+      if (wasOnMascot && !didDrag) {
         return;
       }
 
@@ -69,14 +69,14 @@ export function useDrag(callbacks: DragCallbacks = {}): DragState {
     };
   }, [isDragging, callbacks]);
 
-  const startDrag = useCallback((e: React.MouseEvent, onClawd = false) => {
-    if (onClawd) {
+  const startDrag = useCallback((e: React.MouseEvent, onMascot = false) => {
+    if (onMascot) {
       e.stopPropagation();
       dragStartPos.current = { x: e.clientX, y: e.clientY };
-      clickedOnClawd.current = true;
+      clickedOnMascot.current = true;
     } else {
       e.preventDefault();
-      clickedOnClawd.current = false;
+      clickedOnMascot.current = false;
     }
     wasDragged.current = false;
     setIsDragging(true);

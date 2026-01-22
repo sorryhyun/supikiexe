@@ -1,7 +1,7 @@
 //! Generates TypeScript bindings for the frontend
 //! Run with: cargo run --bin codegen
 
-use claude_mascot_lib::create_specta_builder;
+use supiki_lib::create_specta_builder;
 
 fn main() {
     let builder = create_specta_builder();

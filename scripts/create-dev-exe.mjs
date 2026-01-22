@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * Create dev and supiki executables by copying the main exe
+ * Create dev and clawd executables by copying the main exe
  *
- * After Tauri build, this copies claude-mascot.exe to:
- * - claude_mascot_dev.exe (dev mode detection via exe name)
- * - claude-mascot-supiki.exe (supiki variant)
+ * After Tauri build, this copies supiki.exe to:
+ * - supiki_dev.exe (dev mode detection via exe name)
+ * - supiki-clawd.exe (clawd variant - secondary mascot)
  *
  * All artifacts are collected in the artifacts/ directory.
  */
@@ -34,7 +34,7 @@ function findAndCopyExe(dir) {
   if (!existsSync(dir)) return false;
 
   const files = readdirSync(dir);
-  const exeFile = files.find(f => f.endsWith(".exe") && !f.includes("_dev") && !f.includes("-supiki") && f.includes("mascot"));
+  const exeFile = files.find(f => f.endsWith(".exe") && !f.includes("_dev") && !f.includes("-clawd") && f.includes("supiki"));
 
   if (exeFile) {
     const srcPath = join(dir, exeFile);
@@ -53,12 +53,12 @@ function findAndCopyExe(dir) {
     copyFileSync(srcPath, devPath);
     console.log(`Created: ${devPath}`);
 
-    // Create supiki exe in artifacts
-    const supikiName = baseName + "-supiki.exe";
-    const supikiPath = join(artifactsDir, supikiName);
-    console.log(`Copying ${exeFile} -> ${supikiName}`);
-    copyFileSync(srcPath, supikiPath);
-    console.log(`Created: ${supikiPath}`);
+    // Create clawd exe in artifacts (secondary mascot variant)
+    const clawdName = baseName + "-clawd.exe";
+    const clawdPath = join(artifactsDir, clawdName);
+    console.log(`Copying ${exeFile} -> ${clawdName}`);
+    copyFileSync(srcPath, clawdPath);
+    console.log(`Created: ${clawdPath}`);
 
     return true;
   }

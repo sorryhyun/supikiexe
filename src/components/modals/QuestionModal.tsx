@@ -135,7 +135,7 @@ function QuestionModal({
     <div className="modal-overlay question-modal-overlay">
       <div className="modal question-modal">
         <div className="modal-header question-modal-header">
-          <span>Question from Clawd</span>
+          <span>Question from Supiki</span>
           {onCancel && (
             <button className="modal-close" onClick={onCancel}>
               x

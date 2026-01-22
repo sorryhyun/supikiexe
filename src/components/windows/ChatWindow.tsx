@@ -106,7 +106,7 @@ function ChatWindow() {
     <div className="chat-window" onMouseDown={handleDragStart}>
       <div className="chat-window-header" onMouseDown={handleDragStart}>
         <span className="chat-window-title">
-          {isViewMode ? "Chat History" : "Chat with Clawd"}
+          {isViewMode ? "Chat History" : "Chat with Supiki"}
         </span>
         <div className="chat-window-buttons">
           {!isViewMode && (
@@ -166,7 +166,7 @@ function ChatWindow() {
             ))
           )}
           {!isViewMode && chat.isTyping && !chat.messages.some((m) => m.isStreaming) && (
-            <SpeechBubble message="" sender="clawd" isTyping />
+            <SpeechBubble message="" sender="mascot" isTyping />
           )}
           <div ref={messagesEndRef} />
         </div>
@@ -184,7 +184,7 @@ function ChatWindow() {
           </div>
         )}
       </div>
-      {/* Speech bubble tail pointing to Clawd */}
+      {/* Speech bubble tail pointing to Supiki */}
       <div className="chat-window-tail"></div>
 
       {/* Question modal for AskUserQuestion tool */}

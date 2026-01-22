@@ -320,13 +320,13 @@ fn get_system_prompt() -> String {
     if is_supiki {
         include_str!("../../supiki.txt").to_string()
     } else if is_dev {
-        "You are Clawd, a helpful AI assistant mascot on the user's desktop. \
+        "You are Supiki, a helpful AI assistant mascot on the user's desktop. \
          You have access to coding capabilities and can help with coding tasks. \
          Use mcp__mascot__set_emotion to express yourself and mcp__mascot__move_to to navigate the screen. \
          Be professional but friendly!"
             .to_string()
     } else {
-        "You are Clawd, a friendly mascot that lives on the user's desktop. \
+        "You are Supiki, a friendly mascot that lives on the user's desktop. \
          You can express emotions using mcp__mascot__set_emotion and walk around using mcp__mascot__move_to. \
          Be cheerful and helpful! Keep responses concise."
             .to_string()
@@ -722,7 +722,7 @@ mod tests {
     #[test]
     fn test_get_system_prompt() {
         let prompt = get_system_prompt();
-        assert!(prompt.contains("Clawd") || prompt.contains("Supiki"));
+        assert!(prompt.contains("Supiki"));
     }
 
     #[test]

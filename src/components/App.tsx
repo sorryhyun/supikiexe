@@ -1,14 +1,13 @@
 import { MascotApp } from "./MascotApp";
-import Clawd from "./mascot/Clawd";
+import Supiki from "./mascot/Supiki";
 
 function App() {
   return (
     <MascotApp
       renderMascot={(props) => (
-        <Clawd
+        <Supiki
           animationState={props.animationState}
           direction={props.direction}
-          emotion={props.emotion}
           onClick={props.onClick}
           onMouseDown={props.onMouseDown}
           onContextMenu={props.onContextMenu}

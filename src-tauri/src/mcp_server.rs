@@ -1,4 +1,4 @@
-//! MCP server for controlling the Clawd desktop mascot.
+//! MCP server for controlling the Supiki desktop mascot.
 //!
 //! This server provides tools that Claude can use to control the mascot's
 //! emotions and movement. The actual mascot control happens when Tauri
@@ -58,7 +58,7 @@ impl MascotService {
     }
 
     /// Set the mascot's emotional expression.
-    /// Use this to make Clawd express different emotions like happy, sad, excited, etc.
+    /// Use this to make Supiki express different emotions like happy, sad, excited, etc.
     #[tool(
         description = "Set the mascot's emotional expression. Available emotions: neutral, happy, sad, excited, thinking, surprised, love"
     )]
@@ -73,7 +73,7 @@ impl MascotService {
     }
 
     /// Move the mascot to a position on screen.
-    /// Use this to make Clawd walk to different parts of the screen.
+    /// Use this to make Supiki walk to different parts of the screen.
     #[tool(
         description = "Move the mascot to a screen position. Target can be: 'left', 'right', 'center', or a specific x-coordinate"
     )]

@@ -2,7 +2,7 @@ interface SpeechBubbleProps {
   message: string;
   isTyping?: boolean;
   isStreaming?: boolean;
-  sender: "user" | "clawd";
+  sender: "user" | "mascot";
 }
 
 /**

@@ -95,7 +95,7 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
 
   const addMessage = useCallback(
     (
-      sender: "user" | "clawd",
+      sender: "user" | "mascot",
       content: string,
       metadata?: Partial<AgentChatMessage>
     ) => {
@@ -161,7 +161,7 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
       addMessage("user", displayContent);
 
       // Create placeholder for streaming response
-      const placeholderMsg = addMessage("clawd", "", { isStreaming: true });
+      const placeholderMsg = addMessage("mascot", "", { isStreaming: true });
       streamingMessageId.current = placeholderMsg.id;
 
       const callbacks: AgentQueryCallbacks = {

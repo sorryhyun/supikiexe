@@ -1,4 +1,4 @@
-//! Claude Mascot - Tauri backend
+//! Supiki - Tauri backend
 //!
 //! This is the main entry point for the Tauri application.
 //! The codebase is organized into the following modules:
