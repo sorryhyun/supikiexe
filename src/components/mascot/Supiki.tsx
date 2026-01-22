@@ -99,8 +99,14 @@ function Supiki({ animationState, direction, onClick, onMouseDown, onDoubleClick
     // Calculate click position relative to center (-1 to 1)
     if (wrapperRef.current) {
       const rect = wrapperRef.current.getBoundingClientRect();
-      const x = ((e.clientX - rect.left) / rect.width - 0.5) * 2; // -1 (left) to 1 (right)
+      let x = ((e.clientX - rect.left) / rect.width - 0.5) * 2; // -1 (left) to 1 (right)
       const y = ((e.clientY - rect.top) / rect.height - 0.5) * 2; // -1 (top) to 1 (bottom)
+
+      // When facing left (flipped), invert x to match visual position
+      if (direction === "left") {
+        x = -x;
+      }
+
       setClickOffset({ x, y });
     }
     isPressedRef.current = true;

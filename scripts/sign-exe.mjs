@@ -37,12 +37,12 @@ function findExesToSign() {
   }
 
   return readdirSync(artifactsDir)
-    .filter((f) => f.endsWith(".exe"))
+    .filter((f) => f.endsWith(".exe") && !f.includes("codex"))
     .map((f) => join(artifactsDir, f));
 }
 
-const certPath = join(rootDir, "tauri-devcert.pfx");
-const certPassword = "devpass";
+const certPath = join(rootDir, "dev-cert.pfx");
+const certPassword = "sorrysorry";
 
 if (!existsSync(certPath)) {
   console.log("Warning: tauri-devcert.pfx not found, skipping signing");

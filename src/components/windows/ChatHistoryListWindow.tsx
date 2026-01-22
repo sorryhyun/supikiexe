@@ -3,6 +3,8 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { emitTo } from "@tauri-apps/api/event";
 import { sessionStorage } from "../../services/sessionStorage";
 import type { ChatSession } from "../../services/agentTypes";
+import { useModalWindow } from "../../hooks/useModalWindow";
+import { Modal } from "../modals/Modal";
 
 function formatDate(timestamp: number): string {
   const date = new Date(timestamp);
@@ -28,59 +30,22 @@ function ChatHistoryListWindow() {
     setSessions(sessionStorage.getSessions());
   }, []);
 
-  // Handle Escape key and focus loss
-  useEffect(() => {
+  const handleClose = async () => {
     const win = getCurrentWindow();
-    let hideTimeout: number | null = null;
-
-    const handleKeyDown = async (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        await win.close();
-      }
-    };
-
-    // Close when window loses focus (clicking outside)
-    const unlisten = win.onFocusChanged(async ({ payload: focused }) => {
-      if (focused) {
-        if (hideTimeout) {
-          clearTimeout(hideTimeout);
-          hideTimeout = null;
-        }
-      } else {
-        // Delay to allow button clicks to execute
-        hideTimeout = window.setTimeout(async () => {
-          await win.close();
-        }, 150);
-      }
-    });
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      if (hideTimeout) clearTimeout(hideTimeout);
-      unlisten.then((fn) => fn());
-    };
-  }, []);
-
-  // Enable window dragging
-  const handleDragStart = async (e: React.MouseEvent) => {
-    const target = e.target as HTMLElement;
-    const tagName = target.tagName.toLowerCase();
-
-    // Don't drag if clicking on interactive elements or list items
-    if (tagName === "button" || target.closest(".history-list-item")) {
-      return;
-    }
-
-    const appWindow = getCurrentWindow();
-    await appWindow.startDragging();
+    await win.close();
   };
+
+  const { handleDragStart } = useModalWindow({
+    onEscape: handleClose,
+    closeOnBlur: true,
+    blurDelay: 150,
+    skipDragSelector: ".history-list-item",
+  });
 
   const handleSelectSession = async (session: ChatSession) => {
     // Emit to main window to open this session
     await emitTo("main", "open-session", { sessionId: session.id });
-    const win = getCurrentWindow();
-    await win.close();
+    await handleClose();
   };
 
   const handleDeleteSession = async (e: React.MouseEvent, sessionId: string) => {
@@ -89,20 +54,14 @@ function ChatHistoryListWindow() {
     setSessions(sessionStorage.getSessions());
   };
 
-  const handleClose = async () => {
-    const win = getCurrentWindow();
-    await win.close();
-  };
-
   return (
-    <div className="history-list-window" onMouseDown={handleDragStart}>
-      <div className="history-list-header" onMouseDown={handleDragStart}>
-        <span className="history-list-title">Chat History</span>
-        <button className="history-list-close" onClick={handleClose}>
-          x
-        </button>
-      </div>
-      <div className="history-list-body" onMouseDown={handleDragStart}>
+    <Modal
+      title="Chat History"
+      onClose={handleClose}
+      className="history-list-window"
+      onMouseDown={handleDragStart}
+    >
+      <div className="history-list-body">
         {sessions.length === 0 ? (
           <div className="history-list-empty">No chat history yet</div>
         ) : (
@@ -130,7 +89,7 @@ function ChatHistoryListWindow() {
           ))
         )}
       </div>
-    </div>
+    </Modal>
   );
 }
 

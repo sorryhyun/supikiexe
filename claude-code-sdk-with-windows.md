@@ -5,7 +5,7 @@ This guide documents how to build native Windows desktop applications that integ
 ## Why Rust?
 
 - **Zero runtime dependencies** - Single executable, no Node.js/Python needed
-- **Small binary size** - MCP servers can be ~500KB
+- **Small binary size** - Self-contained apps with built-in MCP server
 - **Native performance** - Fast startup, low memory usage
 - **Cross-platform** - Build for Windows, macOS, and Linux from one codebase
 
@@ -21,7 +21,7 @@ Instead of using the Anthropic API directly (which requires API key management),
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Your App (Tauri)                              │
+│                    Your App.exe (Tauri)                          │
 ├─────────────────────────────────────────────────────────────────┤
 │  Frontend (React/Vue/Svelte)                                     │
 │  └── UI, state management, event handling                        │
@@ -41,10 +41,12 @@ Instead of using the Anthropic API directly (which requires API key management),
                        │ stdio (MCP protocol)
                        ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  your-mcp-server.exe (Rust binary, ~500KB)                       │
+│  Your App.exe --mcp (same binary, MCP server mode)               │
 │  └── Custom tools for your application                           │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+**Key insight**: Instead of shipping a separate MCP server binary, your Tauri app can serve as its own MCP server by detecting a `--mcp` flag at startup. This eliminates the need for additional executables.
 
 ## Prerequisites
 
@@ -266,29 +268,26 @@ listen<ClaudeEvent>("claude-event", (event) => {
 });
 ```
 
-## MCP Server in Rust
+## MCP Server in Rust (Self-Hosting Pattern)
 
-MCP (Model Context Protocol) lets you extend Claude's capabilities with custom tools.
+MCP (Model Context Protocol) lets you extend Claude's capabilities with custom tools. Instead of building a separate MCP server binary, you can make your main application serve as its own MCP server by detecting a `--mcp` flag.
 
-### Cargo.toml
+### Why Self-Host?
+
+- **Single executable** - No additional binaries to distribute
+- **Shared code** - Reuse types and logic between app and MCP server
+- **Simpler deployment** - One file to sign, bundle, and update
+- **Direct IPC** - MCP server can communicate with the running app via IPC
+
+### Cargo.toml (add to your Tauri app)
 
 ```toml
-[package]
-name = "your-mcp-server"
-version = "0.1.0"
-edition = "2021"
-
-[[bin]]
-name = "your-mcp-server"
-path = "src/main.rs"
-
 [dependencies]
+# ... your existing dependencies ...
+
+# MCP server support
 rmcp = { version = "0.3", features = ["server", "macros", "transport-io"] }
-tokio = { version = "1", features = ["full"] }
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
 schemars = "0.8"
-anyhow = "1.0"
 
 # For screenshot/image support (optional)
 xcap = "0.4"                    # Cross-platform screen capture
@@ -296,9 +295,35 @@ base64 = "0.22"                 # Base64 encoding
 image = { version = "0.25", default-features = false, features = ["png", "webp"] }
 ```
 
+### Entry Point with --mcp Flag Detection
+
+```rust
+// src-tauri/src/main.rs
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
+mod mcp_server;
+
+#[tokio::main]
+async fn main() {
+    // Check for --mcp flag BEFORE initializing Tauri
+    if std::env::args().any(|arg| arg == "--mcp") {
+        // Run as MCP server (stdio mode)
+        if let Err(e) = mcp_server::run_mcp_server().await {
+            eprintln!("MCP server error: {}", e);
+            std::process::exit(1);
+        }
+        return;
+    }
+
+    // Normal Tauri app initialization
+    your_app_lib::run();
+}
+```
+
 ### MCP Server Implementation
 
 ```rust
+// src-tauri/src/mcp_server.rs
 use std::io::Cursor;
 use anyhow::Result;
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
@@ -424,8 +449,7 @@ impl ServerHandler for MascotService {
     }
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
+pub async fn run_mcp_server() -> Result<()> {
     let transport = (tokio::io::stdin(), tokio::io::stdout());
     let service = MascotService::new().serve(transport).await?;
     service.waiting().await?;
@@ -448,29 +472,49 @@ For image content, use `Content::image(base64_data, mime_type)` within `CallTool
 
 ### MCP Config File
 
+Point the MCP config to your own executable with the `--mcp` flag:
+
 ```json
 {
   "mcpServers": {
     "mascot": {
-      "command": "path/to/your-mcp-server.exe",
-      "args": []
+      "command": "path/to/YourApp.exe",
+      "args": ["--mcp"]
     }
   }
 }
 ```
 
-### Bundle MCP Server with Tauri
+### Generate MCP Config at Runtime
 
-```json
-// tauri.conf.json
-{
-  "bundle": {
-    "resources": [
-      "../your-mcp-server/target/release/your-mcp-server.exe"
-    ]
-  }
+Since your app knows its own path, generate the MCP config dynamically:
+
+```rust
+use std::path::PathBuf;
+
+fn generate_mcp_config(app_exe_path: &PathBuf) -> serde_json::Value {
+    serde_json::json!({
+        "mcpServers": {
+            "mascot": {
+                "command": app_exe_path.to_string_lossy(),
+                "args": ["--mcp"]
+            }
+        }
+    })
 }
+
+// In your Tauri setup
+let exe_path = std::env::current_exe().expect("Failed to get exe path");
+let config = generate_mcp_config(&exe_path);
+let config_path = app_data_dir.join("mcp-config.json");
+std::fs::write(&config_path, serde_json::to_string_pretty(&config)?)?;
 ```
+
+### No Additional Bundling Required
+
+Since the MCP server is built into your main executable, there's no need to bundle separate binaries. Your single `.exe` handles both:
+- GUI mode (default): `YourApp.exe`
+- MCP server mode: `YourApp.exe --mcp`
 
 ## Windows Code Signing
 
@@ -563,9 +607,8 @@ path = "scripts/sign.rs"
 ```
 
 ```bash
-# Build everything
+# Build (single executable handles both GUI and MCP modes)
 cargo build --release -p your-app
-cargo build --release -p your-mcp-server
 
 # Sign
 cargo run --bin sign
@@ -598,32 +641,19 @@ your-app/
 ├── src/                      # Frontend (if using Tauri)
 ├── src-tauri/                # Tauri Rust backend
 │   ├── src/
-│   │   ├── main.rs
+│   │   ├── main.rs           # Entry point with --mcp detection
 │   │   ├── lib.rs
-│   │   └── claude_runner.rs  # Claude CLI integration
-│   └── Cargo.toml
-├── your-mcp-server/          # MCP server (separate crate)
-│   ├── src/
-│   │   └── main.rs
+│   │   ├── claude_runner.rs  # Claude CLI integration
+│   │   └── mcp_server.rs     # MCP server (same binary)
 │   └── Cargo.toml
 ├── scripts/
 │   └── sign.rs               # Signing utility
 ├── artifacts/                # Build outputs (gitignored)
 ├── dev-cert.pfx              # Dev certificate (gitignored)
-├── Cargo.toml                # Workspace root
-└── mcp-config.json
+└── Cargo.toml                # Workspace root
 ```
 
-### Cargo Workspace
-
-```toml
-# Cargo.toml (workspace root)
-[workspace]
-members = [
-    "src-tauri",
-    "your-mcp-server",
-]
-```
+Note: No separate MCP server crate needed - it's built into the main executable.
 
 ## Tips and Best Practices
 
@@ -691,10 +721,11 @@ strip = true        # Strip symbols
 
 ## Case Study: Claude Mascot
 
-Claude Mascot demonstrates this architecture:
+Claude Mascot demonstrates this self-hosting architecture:
 
-- **Tauri Backend**: Spawns Claude CLI, manages windows, system tray
-- **MCP Server**: ~500KB Rust binary providing mascot control tools
+- **Single Executable**: One `.exe` runs as both Tauri GUI and MCP server
+- **GUI Mode** (default): Spawns Claude CLI, manages windows, system tray
+- **MCP Mode** (`--mcp` flag): Provides mascot control tools via stdio
 - **Frontend**: React for mascot rendering and chat UI
 
 Features powered by Claude + MCP:
@@ -708,6 +739,11 @@ The screenshot feature uses:
 - WebP encoding for smaller file sizes (~60% smaller than PNG)
 - Automatic resizing to stay under MCP's 1MB limit
 - Returns image as `Content::image` so Claude can actually "see" the screen
+
+Benefits of self-hosting:
+- No separate MCP server binary to distribute
+- Single file to code-sign and bundle
+- Shared types between GUI and MCP server
 
 All without requiring API keys - uses the user's Claude Code authentication.
 

@@ -5,7 +5,7 @@
 ## 왜 Rust인가?
 
 - **런타임 의존성 없음** - 단일 실행 파일, Node.js/Python 불필요
-- **작은 바이너리 크기** - MCP 서버는 약 500KB 수준
+- **작은 바이너리 크기** - MCP 서버가 내장된 자체 완결형 앱
 - **네이티브 성능** - 빠른 시작, 낮은 메모리 사용량
 - **크로스 플랫폼** - 하나의 코드베이스로 Windows, macOS, Linux 빌드 가능
 
@@ -21,7 +21,7 @@ Anthropic API를 직접 사용하는 대신(API 키 관리 필요), **Claude Cod
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    사용자 앱 (Tauri)                              │
+│                    사용자앱.exe (Tauri)                            │
 ├─────────────────────────────────────────────────────────────────┤
 │  프론트엔드 (React/Vue/Svelte)                                    │
 │  └── UI, 상태 관리, 이벤트 처리                                    │
@@ -41,10 +41,12 @@ Anthropic API를 직접 사용하는 대신(API 키 관리 필요), **Claude Cod
                        │ stdio (MCP 프로토콜)
                        ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  your-mcp-server.exe (Rust 바이너리, ~500KB)                      │
+│  사용자앱.exe --mcp (동일 바이너리, MCP 서버 모드)                   │
 │  └── 애플리케이션용 커스텀 도구                                     │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+**핵심 아이디어**: 별도의 MCP 서버 바이너리를 배포하는 대신, Tauri 앱이 시작 시 `--mcp` 플래그를 감지하여 자체적으로 MCP 서버 역할을 수행합니다. 이를 통해 추가 실행 파일이 필요 없습니다.
 
 ## 사전 요구사항
 
@@ -266,29 +268,26 @@ listen<ClaudeEvent>("claude-event", (event) => {
 });
 ```
 
-## Rust로 MCP 서버 만들기
+## Rust로 MCP 서버 만들기 (셀프 호스팅 패턴)
 
-MCP(Model Context Protocol)를 통해 Claude의 기능을 커스텀 도구로 확장할 수 있습니다.
+MCP(Model Context Protocol)를 통해 Claude의 기능을 커스텀 도구로 확장할 수 있습니다. 별도의 MCP 서버 바이너리를 만드는 대신, `--mcp` 플래그를 감지하여 메인 애플리케이션이 자체적으로 MCP 서버 역할을 할 수 있습니다.
 
-### Cargo.toml
+### 왜 셀프 호스팅인가?
+
+- **단일 실행 파일** - 배포할 추가 바이너리 없음
+- **코드 공유** - 앱과 MCP 서버 간 타입과 로직 재사용
+- **간편한 배포** - 서명, 번들, 업데이트할 파일이 하나
+- **직접 IPC** - MCP 서버가 실행 중인 앱과 IPC로 통신 가능
+
+### Cargo.toml (Tauri 앱에 추가)
 
 ```toml
-[package]
-name = "your-mcp-server"
-version = "0.1.0"
-edition = "2021"
-
-[[bin]]
-name = "your-mcp-server"
-path = "src/main.rs"
-
 [dependencies]
+# ... 기존 의존성 ...
+
+# MCP 서버 지원
 rmcp = { version = "0.3", features = ["server", "macros", "transport-io"] }
-tokio = { version = "1", features = ["full"] }
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
 schemars = "0.8"
-anyhow = "1.0"
 
 # 스크린샷/이미지 지원 (선택사항)
 xcap = "0.4"                    # 크로스플랫폼 화면 캡처
@@ -296,9 +295,35 @@ base64 = "0.22"                 # Base64 인코딩
 image = { version = "0.25", default-features = false, features = ["png", "webp"] }
 ```
 
+### --mcp 플래그 감지 진입점
+
+```rust
+// src-tauri/src/main.rs
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
+mod mcp_server;
+
+#[tokio::main]
+async fn main() {
+    // Tauri 초기화 전에 --mcp 플래그 확인
+    if std::env::args().any(|arg| arg == "--mcp") {
+        // MCP 서버로 실행 (stdio 모드)
+        if let Err(e) = mcp_server::run_mcp_server().await {
+            eprintln!("MCP 서버 오류: {}", e);
+            std::process::exit(1);
+        }
+        return;
+    }
+
+    // 일반 Tauri 앱 초기화
+    your_app_lib::run();
+}
+```
+
 ### MCP 서버 구현
 
 ```rust
+// src-tauri/src/mcp_server.rs
 use std::io::Cursor;
 use anyhow::Result;
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
@@ -424,8 +449,7 @@ impl ServerHandler for MascotService {
     }
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
+pub async fn run_mcp_server() -> Result<()> {
     let transport = (tokio::io::stdin(), tokio::io::stdout());
     let service = MascotService::new().serve(transport).await?;
     service.waiting().await?;
@@ -448,29 +472,49 @@ MCP 도구는 다양한 타입을 반환할 수 있습니다:
 
 ### MCP 설정 파일
 
+`--mcp` 플래그와 함께 자신의 실행 파일을 가리키도록 MCP 설정을 구성합니다:
+
 ```json
 {
   "mcpServers": {
     "mascot": {
-      "command": "your-mcp-server.exe 경로",
-      "args": []
+      "command": "사용자앱.exe 경로",
+      "args": ["--mcp"]
     }
   }
 }
 ```
 
-### Tauri와 MCP 서버 번들링
+### 런타임에 MCP 설정 생성
 
-```json
-// tauri.conf.json
-{
-  "bundle": {
-    "resources": [
-      "../your-mcp-server/target/release/your-mcp-server.exe"
-    ]
-  }
+앱이 자신의 경로를 알고 있으므로, MCP 설정을 동적으로 생성합니다:
+
+```rust
+use std::path::PathBuf;
+
+fn generate_mcp_config(app_exe_path: &PathBuf) -> serde_json::Value {
+    serde_json::json!({
+        "mcpServers": {
+            "mascot": {
+                "command": app_exe_path.to_string_lossy(),
+                "args": ["--mcp"]
+            }
+        }
+    })
 }
+
+// Tauri 설정에서
+let exe_path = std::env::current_exe().expect("실행 파일 경로를 가져오는데 실패");
+let config = generate_mcp_config(&exe_path);
+let config_path = app_data_dir.join("mcp-config.json");
+std::fs::write(&config_path, serde_json::to_string_pretty(&config)?)?;
 ```
+
+### 추가 번들링 불필요
+
+MCP 서버가 메인 실행 파일에 내장되어 있으므로, 별도의 바이너리를 번들할 필요가 없습니다. 단일 `.exe`가 두 가지를 모두 처리합니다:
+- GUI 모드 (기본): `사용자앱.exe`
+- MCP 서버 모드: `사용자앱.exe --mcp`
 
 ## Windows 코드 서명
 
@@ -563,9 +607,8 @@ path = "scripts/sign.rs"
 ```
 
 ```bash
-# 전체 빌드
+# 빌드 (단일 실행 파일이 GUI와 MCP 모드 모두 처리)
 cargo build --release -p your-app
-cargo build --release -p your-mcp-server
 
 # 서명
 cargo run --bin sign
@@ -598,32 +641,19 @@ your-app/
 ├── src/                      # 프론트엔드 (Tauri 사용 시)
 ├── src-tauri/                # Tauri Rust 백엔드
 │   ├── src/
-│   │   ├── main.rs
+│   │   ├── main.rs           # --mcp 감지가 있는 진입점
 │   │   ├── lib.rs
-│   │   └── claude_runner.rs  # Claude CLI 통합
-│   └── Cargo.toml
-├── your-mcp-server/          # MCP 서버 (별도 크레이트)
-│   ├── src/
-│   │   └── main.rs
+│   │   ├── claude_runner.rs  # Claude CLI 통합
+│   │   └── mcp_server.rs     # MCP 서버 (동일 바이너리)
 │   └── Cargo.toml
 ├── scripts/
 │   └── sign.rs               # 서명 유틸리티
 ├── artifacts/                # 빌드 출력물 (gitignore 대상)
 ├── dev-cert.pfx              # 개발용 인증서 (gitignore 대상)
-├── Cargo.toml                # 워크스페이스 루트
-└── mcp-config.json
+└── Cargo.toml                # 워크스페이스 루트
 ```
 
-### Cargo 워크스페이스
-
-```toml
-# Cargo.toml (워크스페이스 루트)
-[workspace]
-members = [
-    "src-tauri",
-    "your-mcp-server",
-]
-```
+참고: 별도의 MCP 서버 크레이트가 필요 없습니다 - 메인 실행 파일에 내장됩니다.
 
 ## 팁과 모범 사례
 
@@ -691,10 +721,11 @@ strip = true        # 심볼 제거
 
 ## 사례 연구: Claude Mascot
 
-Claude Mascot은 이 아키텍처를 실제로 보여주는 예시입니다:
+Claude Mascot은 이 셀프 호스팅 아키텍처를 실제로 보여주는 예시입니다:
 
-- **Tauri 백엔드**: Claude CLI 스폰, 윈도우 관리, 시스템 트레이
-- **MCP 서버**: 마스코트 제어 도구를 제공하는 ~500KB Rust 바이너리
+- **단일 실행 파일**: 하나의 `.exe`가 Tauri GUI와 MCP 서버 모두로 실행됨
+- **GUI 모드** (기본): Claude CLI 스폰, 윈도우 관리, 시스템 트레이
+- **MCP 모드** (`--mcp` 플래그): stdio를 통해 마스코트 제어 도구 제공
 - **프론트엔드**: 마스코트 렌더링 및 채팅 UI를 위한 React
 
 Claude + MCP로 구현된 기능:
@@ -708,6 +739,11 @@ Claude + MCP로 구현된 기능:
 - 더 작은 파일 크기를 위한 WebP 인코딩 (PNG보다 ~60% 작음)
 - MCP의 1MB 제한 내로 유지하기 위한 자동 리사이징
 - Claude가 실제로 화면을 "볼" 수 있도록 `Content::image`로 이미지 반환
+
+셀프 호스팅의 장점:
+- 배포할 별도의 MCP 서버 바이너리 없음
+- 코드 서명하고 번들할 파일이 하나
+- GUI와 MCP 서버 간 타입 공유
 
 API 키 없이 모든 것이 동작합니다 - 사용자의 Claude Code 인증을 사용합니다.
 

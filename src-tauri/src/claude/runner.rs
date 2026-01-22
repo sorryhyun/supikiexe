@@ -11,7 +11,7 @@ use std::thread;
 use serde::{Deserialize, Serialize};
 use tauri::Emitter;
 
-use crate::claude_command::ClaudeCommandBuilder;
+use super::command::ClaudeCommandBuilder;
 use crate::state::{save_session_to_disk, DEV_MODE, SESSION_ID, SIDECAR_CWD, SUPIKI_MODE};
 
 /// Streaming JSON events from Claude CLI
@@ -114,7 +114,7 @@ fn get_system_prompt() -> String {
     let is_dev = *DEV_MODE.lock().unwrap();
 
     if is_supiki {
-        include_str!("../supiki.txt").to_string()
+        include_str!("../../supiki.txt").to_string()
     } else if is_dev {
         "You are Clawd, a helpful AI assistant mascot on the user's desktop. \
          You have access to Claude Code capabilities and can help with coding tasks. \

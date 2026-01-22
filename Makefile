@@ -1,4 +1,4 @@
-.PHONY: test test-ts test-rust dev build lint clean codegen-tauri
+.PHONY: test test-ts test-rust dev dev-supiki build lint clean codegen-tauri
 
 # Run all tests
 test: test-ts test-rust
@@ -11,9 +11,13 @@ test-ts:
 test-rust:
 	cd src-tauri && cargo test
 
-# Development mode
+# Development mode (|| true suppresses Ctrl+C exit code on Windows)
 dev:
-	npm run dev
+	npm run dev || true
+
+# Development mode (Supiki mascot)
+dev-supiki:
+	npm run dev-supiki || true
 
 # Build production
 build:

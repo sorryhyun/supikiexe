@@ -13,8 +13,8 @@ use base64::{engine::general_purpose::STANDARD, Engine};
 use serde::Deserialize;
 use tauri::{Emitter, Manager};
 
-use crate::claude_runner::ToolUseEvent;
-use crate::codex_command::CodexCommandBuilder;
+use super::command::CodexCommandBuilder;
+use crate::claude::ToolUseEvent;
 use crate::state::{save_codex_session_to_disk, CODEX_SESSION_ID, DEV_MODE, SIDECAR_CWD, SUPIKI_MODE};
 
 /// Codex JSONL event types
@@ -139,32 +139,43 @@ pub enum CodexContent {
     },
 }
 
-/// Codex executable filename (from GitHub releases)
-const CODEX_EXE_NAME: &str = "codex-x86_64-pc-windows-msvc.exe";
+/// Codex executable filename (from GitHub releases) - Windows only
+#[cfg(target_os = "windows")]
+const CODEX_BUNDLED_EXE: &str = "codex-x86_64-pc-windows-msvc.exe";
 
 /// Get the path to codex executable
 fn get_codex_exe_path(app: &tauri::AppHandle) -> Option<PathBuf> {
-    // In production, exe is in resources directory
-    if let Ok(resource_dir) = app.path().resource_dir() {
-        let exe_path = resource_dir.join(CODEX_EXE_NAME);
-        if exe_path.exists() {
-            return Some(exe_path);
+    #[cfg(target_os = "windows")]
+    {
+        // On Windows, check for bundled exe in resources (production)
+        if let Ok(resource_dir) = app.path().resource_dir() {
+            let exe_path = resource_dir.join(CODEX_BUNDLED_EXE);
+            if exe_path.exists() {
+                return Some(exe_path);
+            }
         }
+
+        // Check for codex.exe in project root (development)
+        let codex_exe = PathBuf::from("codex.exe");
+        if codex_exe.exists() {
+            return Some(codex_exe);
+        }
+
+        // Also check for the bundled exe name in project root
+        let bundled_exe = PathBuf::from(CODEX_BUNDLED_EXE);
+        if bundled_exe.exists() {
+            return Some(bundled_exe);
+        }
+
+        None
     }
 
-    // In development, exe is in project root
-    let dev_paths = vec![
-        PathBuf::from(format!("../{}", CODEX_EXE_NAME)),
-        PathBuf::from(CODEX_EXE_NAME),
-    ];
-
-    for path in dev_paths {
-        if path.exists() {
-            return Some(path);
-        }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = app; // Silence unused warning
+        // On Linux/Mac, use codex from PATH
+        Some(PathBuf::from("codex"))
     }
-
-    None
 }
 
 /// Get the path to the current executable (which runs MCP server with --mcp flag)
@@ -307,7 +318,7 @@ fn get_system_prompt() -> String {
     let is_dev = *DEV_MODE.lock().unwrap();
 
     if is_supiki {
-        include_str!("../supiki.txt").to_string()
+        include_str!("../../supiki.txt").to_string()
     } else if is_dev {
         "You are Clawd, a helpful AI assistant mascot on the user's desktop. \
          You have access to coding capabilities and can help with coding tasks. \
@@ -325,12 +336,16 @@ fn get_system_prompt() -> String {
 /// Run a query using the Codex CLI
 /// Returns immediately after spawning - results come via Tauri events
 pub fn run_query(app: tauri::AppHandle, prompt: String, images: Vec<String>) -> Result<(), String> {
-    // Get path to bundled codex executable
-    let codex_exe = get_codex_exe_path(&app)
-        .ok_or_else(|| format!(
-            "Could not find {}. Please download it from https://github.com/openai/codex/releases",
-            CODEX_EXE_NAME
-        ))?;
+    // Get path to codex executable
+    let codex_exe = get_codex_exe_path(&app).ok_or_else(|| {
+        #[cfg(target_os = "windows")]
+        return format!(
+            "Could not find codex.exe or {}. Please download from https://github.com/openai/codex/releases",
+            CODEX_BUNDLED_EXE
+        );
+        #[cfg(not(target_os = "windows"))]
+        return "Could not find codex in PATH. Please install codex or ensure it's in your PATH.".to_string();
+    })?;
 
     // Write MCP config
     write_codex_mcp_config(&app)?;
@@ -615,34 +630,55 @@ pub fn clear_session() {
     eprintln!("[Rust] Codex session cleared");
 }
 
-/// Check if codex CLI is available (checks bundled binary locations)
+/// Check if codex CLI is available
 pub fn check_codex_available() -> Result<String, String> {
-    // Check known locations for bundled codex executable
-    let dev_paths = vec![
-        PathBuf::from(format!("../{}", CODEX_EXE_NAME)),
-        PathBuf::from(CODEX_EXE_NAME),
-    ];
+    #[cfg(target_os = "windows")]
+    {
+        // On Windows, check for codex.exe or bundled exe in project root
+        let paths = vec![
+            PathBuf::from("codex.exe"),
+            PathBuf::from(CODEX_BUNDLED_EXE),
+        ];
 
-    for path in dev_paths {
-        if path.exists() {
-            match Command::new(&path).arg("--version").output() {
-                Ok(output) => {
-                    if output.status.success() {
-                        let version = String::from_utf8_lossy(&output.stdout);
-                        return Ok(format!("{} (bundled)", version.trim()));
+        for path in paths {
+            if path.exists() {
+                match Command::new(&path).arg("--version").output() {
+                    Ok(output) => {
+                        if output.status.success() {
+                            let version = String::from_utf8_lossy(&output.stdout);
+                            return Ok(format!("{} (bundled)", version.trim()));
+                        }
                     }
-                }
-                Err(e) => {
-                    eprintln!("[Rust] Failed to run codex at {:?}: {}", path, e);
+                    Err(e) => {
+                        eprintln!("[Rust] Failed to run codex at {:?}: {}", path, e);
+                    }
                 }
             }
         }
+
+        Err(format!(
+            "Codex CLI not found. Please place codex.exe or {} in the project root, or download from https://github.com/openai/codex/releases",
+            CODEX_BUNDLED_EXE
+        ))
     }
 
-    Err(format!(
-        "Codex CLI not found. Please download {} from https://github.com/openai/codex/releases",
-        CODEX_EXE_NAME
-    ))
+    #[cfg(not(target_os = "windows"))]
+    {
+        // On Linux/Mac, check if codex is in PATH
+        match Command::new("codex").arg("--version").output() {
+            Ok(output) => {
+                if output.status.success() {
+                    let version = String::from_utf8_lossy(&output.stdout);
+                    return Ok(version.trim().to_string());
+                }
+                Err("Codex CLI found but returned an error".to_string())
+            }
+            Err(_) => Err(
+                "Codex CLI not found in PATH. Please install codex or ensure it's in your PATH."
+                    .to_string(),
+            ),
+        }
+    }
 }
 
 /// Check if codex CLI is available (with app handle for resource path)
@@ -653,7 +689,10 @@ pub fn check_codex_available_with_app(app: &tauri::AppHandle) -> Result<String, 
                 Ok(output) => {
                     if output.status.success() {
                         let version = String::from_utf8_lossy(&output.stdout);
-                        Ok(format!("{} (bundled)", version.trim()))
+                        #[cfg(target_os = "windows")]
+                        return Ok(format!("{} (bundled)", version.trim()));
+                        #[cfg(not(target_os = "windows"))]
+                        return Ok(version.trim().to_string());
                     } else {
                         Err("Codex CLI found but returned an error".to_string())
                     }
@@ -661,10 +700,18 @@ pub fn check_codex_available_with_app(app: &tauri::AppHandle) -> Result<String, 
                 Err(e) => Err(format!("Failed to run codex at {:?}: {}", path, e)),
             }
         }
-        None => Err(format!(
-            "Codex CLI not found. Please download {} from https://github.com/openai/codex/releases",
-            CODEX_EXE_NAME
-        )),
+        None => {
+            #[cfg(target_os = "windows")]
+            return Err(format!(
+                "Codex CLI not found. Please place codex.exe or {} in the project root, or download from https://github.com/openai/codex/releases",
+                CODEX_BUNDLED_EXE
+            ));
+            #[cfg(not(target_os = "windows"))]
+            return Err(
+                "Codex CLI not found in PATH. Please install codex or ensure it's in your PATH."
+                    .to_string(),
+            );
+        }
     }
 }
 
