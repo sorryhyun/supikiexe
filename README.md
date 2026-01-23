@@ -18,7 +18,7 @@ Tauri v2 + React + TypeScript로 만든 데스크톱 마스코트 앱입니다. 
 
 ### 실행
 
-1. [Releases](https://github.com/anthropics/supiki/releases)에서 최신 버전 다운로드
+1. [Releases](https://github.com/sorryhyun/claudeexe/releases)에서 최신 버전 다운로드
 2. `Supiki.exe` 실행
 
 ## 개발 환경 설정
@@ -58,10 +58,9 @@ npm run build
 ### 테스트
 
 ```bash
-make test            # 모든 테스트 실행 (TypeScript + Rust + MCP)
+make test            # 모든 테스트 실행 (TypeScript + Rust)
 make test-ts         # TypeScript 테스트만 실행
 make test-rust       # Rust 테스트만 실행
-make test-mcp        # MCP 서버 테스트만 실행
 npm run test:watch   # TypeScript 테스트 watch 모드
 ```
 
@@ -69,7 +68,6 @@ npm run test:watch   # TypeScript 테스트 watch 모드
 
 ```bash
 npm run vite:build   # 프론트엔드만 빌드
-npm run bundle:mcp   # MCP 서버 빌드
 npm run icons        # 아이콘 재생성
 ```
 
@@ -91,16 +89,16 @@ npm run icons        # 아이콘 재생성
 │  - 채팅 인터페이스       │  - 스트리밍 JSON 파싱                 │
 │  - 물리 엔진             │  - 프론트엔드 이벤트 전송             │
 └──────────────────────────┴──────────────────────────────────────┘
-                           │
+                           │ spawn
                            ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │  claude CLI (Claude Code)                                        │
-│  └── MCP 프로토콜로 mascot-mcp.exe와 통신                        │
+│  └── MCP 프로토콜로 Supiki.exe --mcp와 통신                      │
 └──────────────────────────┬──────────────────────────────────────┘
-                           │
+                           │ stdio (MCP protocol)
                            ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  mascot-mcp.exe (Rust MCP 서버)                                  │
+│  Supiki.exe --mcp (MCP 서버 모드)                                │
 │  └── set_emotion, move_to, capture_screenshot 도구 제공          │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -119,5 +117,4 @@ npm run icons        # 아이콘 재생성
 | 디렉토리 | 설명 |
 |----------|------|
 | `src/` | React 프론트엔드 - UI, 물리 엔진, 상태 머신 |
-| `src-tauri/` | Rust 백엔드 - Tauri 앱, 시스템 트레이, Claude CLI 러너 |
-| `mascot-mcp/` | Rust MCP 서버 - 마스코트 제어 도구 |
+| `src-tauri/` | Rust 백엔드 - Tauri 앱, 시스템 트레이, Claude CLI 러너, MCP 서버 |
