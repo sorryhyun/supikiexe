@@ -38,6 +38,7 @@ cd src-tauri && cargo check    # Type-check Rust code
 ```
 
 ```bash
+make check           # Type-check both TypeScript and Rust
 make codegen-tauri   # Regenerate TypeScript bindings from Rust commands
 ```
 
@@ -49,6 +50,7 @@ make test-ts         # Run TypeScript tests only
 make test-rust       # Run Rust tests only
 npm run test         # Run TypeScript tests via npm
 npm run test:watch   # Run TypeScript tests in watch mode
+cd src-tauri && cargo test -- --test-threads=1  # Run single Rust test (replace after --)
 ```
 
 ## Architecture
@@ -139,11 +141,16 @@ The main executable runs in two modes:
 - **MCP mode** (`--mcp` flag): MCP server via stdio for Claude CLI
 
 Tools available to Claude (implemented in `src-tauri/src/mcp_server.rs`):
-- `set_emotion` - Control the mascot's emotional expression (happy, sad, excited, thinking, etc.)
+- `set_emotion` - Control the mascot's emotional expression (neutral, happy, sad, excited, thinking, surprised, love)
 - `move_to` - Walk the mascot to screen position (left, right, center, or x-coordinate)
-- `capture_screenshot` - Capture screen for visual context
+- `capture_screenshot` - Capture all monitors as a combined screenshot for visual context
 
 The MCP server uses the [rmcp](https://github.com/modelcontextprotocol/rust-sdk) crate for the Model Context Protocol implementation.
+
+**Adding a new MCP tool**:
+1. Define a request struct with `#[derive(serde::Deserialize, schemars::JsonSchema)]`
+2. Add an async method to `MascotService` with `#[tool(description = "...")]` attribute
+3. The tool_router macro auto-registers tools annotated with `#[tool]`
 
 ## Backend Modes
 

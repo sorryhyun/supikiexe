@@ -24,6 +24,14 @@ impl ClaudeCommandBuilder {
         self
     }
 
+    pub fn with_streaming_input(mut self) -> Self {
+        self.args.extend([
+            "--input-format".to_string(),
+            "stream-json".to_string(),
+        ]);
+        self
+    }
+
     pub fn with_mcp_config(mut self, config_path: &PathBuf) -> Self {
         self.args.push("--mcp-config".to_string());
         self.args.push(config_path.to_string_lossy().to_string());
@@ -57,13 +65,6 @@ impl ClaudeCommandBuilder {
         self
     }
 
-    pub fn with_images(mut self, images: Vec<String>) -> Self {
-        for image in images {
-            self.args.push("--image".to_string());
-            self.args.push(image);
-        }
-        self
-    }
 
     pub fn with_skip_permissions(mut self) -> Self {
         self.args.push("--dangerously-skip-permissions".to_string());
@@ -120,12 +121,12 @@ mod tests {
     }
 
     #[test]
-    fn test_builder_with_images() {
+    fn test_builder_with_streaming_input() {
         let args = ClaudeCommandBuilder::new()
-            .with_images(vec!["img1.png".to_string(), "img2.png".to_string()])
+            .with_streaming_input()
             .build();
 
-        let image_count = args.iter().filter(|a| *a == "--image").count();
-        assert_eq!(image_count, 2);
+        assert!(args.contains(&"--input-format".to_string()));
+        assert!(args.contains(&"stream-json".to_string()));
     }
 }

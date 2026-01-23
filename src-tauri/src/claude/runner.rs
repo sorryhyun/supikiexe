@@ -3,11 +3,13 @@
 //! Spawns the `claude` CLI process and streams responses back via Tauri events.
 //! Uses --print mode with streaming JSON output for real-time updates.
 
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Cursor, Write};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::thread;
 
+use base64::prelude::*;
+use image::ImageFormat;
 use serde::{Deserialize, Serialize};
 use tauri::Emitter;
 
@@ -129,6 +131,107 @@ fn get_system_prompt() -> String {
     }
 }
 
+/// Convert a base64 image to WebP format for smaller size
+/// Returns (media_type, base64_data) tuple
+fn convert_to_webp(base64_data: &str, original_media_type: &str) -> (String, String) {
+    // Skip conversion if already WebP
+    if original_media_type == "image/webp" {
+        return ("image/webp".to_string(), base64_data.to_string());
+    }
+
+    // Try to decode and convert
+    match BASE64_STANDARD.decode(base64_data) {
+        Ok(image_bytes) => {
+            let original_size = image_bytes.len();
+
+            // Try to load the image
+            match image::load_from_memory(&image_bytes) {
+                Ok(img) => {
+                    // Encode as WebP
+                    let mut webp_buffer = Cursor::new(Vec::new());
+                    match img.write_to(&mut webp_buffer, ImageFormat::WebP) {
+                        Ok(()) => {
+                            let webp_bytes = webp_buffer.into_inner();
+                            let new_size = webp_bytes.len();
+                            let savings = if original_size > 0 {
+                                100.0 - (new_size as f64 / original_size as f64 * 100.0)
+                            } else {
+                                0.0
+                            };
+                            eprintln!(
+                                "[Rust] Converted image to WebP: {} -> {} bytes ({:.1}% smaller)",
+                                original_size, new_size, savings
+                            );
+                            let webp_base64 = BASE64_STANDARD.encode(&webp_bytes);
+                            ("image/webp".to_string(), webp_base64)
+                        }
+                        Err(e) => {
+                            eprintln!("[Rust] Failed to encode WebP: {}, using original", e);
+                            (original_media_type.to_string(), base64_data.to_string())
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("[Rust] Failed to load image: {}, using original", e);
+                    (original_media_type.to_string(), base64_data.to_string())
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("[Rust] Failed to decode base64: {}, using original", e);
+            (original_media_type.to_string(), base64_data.to_string())
+        }
+    }
+}
+
+/// Build a stream-json user message with text and optional images
+fn build_stream_json_message(prompt: &str, images: &[String]) -> String {
+    let mut content = vec![serde_json::json!({
+        "type": "text",
+        "text": prompt
+    })];
+
+    for image in images {
+        // Parse base64 data URL to extract media type and data
+        let (original_media_type, raw_data) = if image.starts_with("data:") {
+            // Format: data:image/png;base64,<data>
+            if let Some(comma_pos) = image.find(',') {
+                let header = &image[5..comma_pos]; // skip "data:"
+                let media_type = header.split(';').next().unwrap_or("image/png");
+                let data = &image[comma_pos + 1..];
+                (media_type.to_string(), data.to_string())
+            } else {
+                ("image/png".to_string(), image.clone())
+            }
+        } else {
+            // Raw base64, assume PNG
+            ("image/png".to_string(), image.clone())
+        };
+
+        // Convert to WebP for smaller size
+        let (media_type, data) = convert_to_webp(&raw_data, &original_media_type);
+
+        content.push(serde_json::json!({
+            "type": "image",
+            "source": {
+                "type": "base64",
+                "media_type": media_type,
+                "data": data
+            }
+        }));
+    }
+
+    let message = serde_json::json!({
+        "type": "user",
+        "message": {
+            "role": "user",
+            "content": content
+        }
+    });
+
+    message.to_string()
+}
+
 /// Run a query using the Claude CLI
 /// Returns immediately after spawning - results come via Tauri events
 pub fn run_query(app: tauri::AppHandle, prompt: String, images: Vec<String>) -> Result<(), String> {
@@ -138,11 +241,17 @@ pub fn run_query(app: tauri::AppHandle, prompt: String, images: Vec<String>) -> 
     // Get session ID and dev mode state
     let session_id = SESSION_ID.lock().unwrap().clone();
     let is_dev = *DEV_MODE.lock().unwrap();
+    let has_images = !images.is_empty();
 
     // Build command arguments using builder
     let mut builder = ClaudeCommandBuilder::new()
         .with_streaming_output()
         .with_mcp_config(&mcp_config_path);
+
+    // Use streaming input when images are present
+    if has_images {
+        builder = builder.with_streaming_input();
+    }
 
     // In dev mode, allow all tools and skip permission prompts
     // In normal mode, restrict to only mascot MCP tools
@@ -156,20 +265,33 @@ pub fn run_query(app: tauri::AppHandle, prompt: String, images: Vec<String>) -> 
         ]);
     }
 
-    let args = builder
+    builder = builder
         .with_system_prompt(get_system_prompt())
-        .with_session_resume(session_id.as_ref())
-        .with_prompt(prompt)
-        .with_images(images)
-        .build();
+        .with_session_resume(session_id.as_ref());
 
-    eprintln!("[Rust] Running claude CLI with {} args", args.len());
+    // Only add prompt as CLI arg if no images (otherwise send via stdin)
+    if !has_images {
+        builder = builder.with_prompt(prompt.clone());
+    }
+
+    let args = builder.build();
+
+    eprintln!(
+        "[Rust] Running claude CLI with {} args, has_images={}",
+        args.len(),
+        has_images
+    );
 
     // Build the command
     let mut cmd = Command::new("claude");
     cmd.args(&args)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+
+    // Need stdin if sending images
+    if has_images {
+        cmd.stdin(Stdio::piped());
+    }
 
     // Set working directory if custom cwd is set
     let custom_cwd = SIDECAR_CWD.lock().unwrap().clone();
@@ -182,6 +304,19 @@ pub fn run_query(app: tauri::AppHandle, prompt: String, images: Vec<String>) -> 
     let mut child = cmd
         .spawn()
         .map_err(|e| format!("Failed to spawn claude CLI: {}. Is Claude Code installed?", e))?;
+
+    // Write message to stdin if we have images
+    if has_images {
+        if let Some(mut stdin) = child.stdin.take() {
+            let message = build_stream_json_message(&prompt, &images);
+            eprintln!("[Rust] Sending stream-json message with {} images", images.len());
+            if let Err(e) = stdin.write_all(message.as_bytes()) {
+                eprintln!("[Rust] Failed to write to stdin: {}", e);
+            }
+            // Drop stdin to signal EOF
+            drop(stdin);
+        }
+    }
 
     let stdout = child.stdout.take().ok_or("Failed to capture stdout")?;
     let stderr = child.stderr.take();
