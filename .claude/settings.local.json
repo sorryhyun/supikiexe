@@ -31,7 +31,8 @@
       "WebFetch(domain:docs.rs)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "WebFetch(domain:developers.openai.com)",
-      "Bash(cargo run:*)"
+      "Bash(cargo run:*)",
+      "Bash(git mv:*)"
     ]
   }
 }

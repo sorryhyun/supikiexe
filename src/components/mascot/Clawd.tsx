@@ -20,15 +20,15 @@ function Clawd({ animationState, direction, emotion: emotionProp = "neutral", on
   const getAnimationClass = () => {
     switch (animationState) {
       case "walking":
-        return "clawd-walking";
+        return "mascot-walking";
       case "jumping":
-        return "clawd-jumping";
+        return "mascot-jumping";
       case "falling":
-        return "clawd-falling";
+        return "mascot-falling";
       case "talking":
-        return "clawd-talking";
+        return "mascot-talking";
       default:
-        return "clawd-idle";
+        return "mascot-idle";
     }
   };
 
@@ -46,7 +46,7 @@ function Clawd({ animationState, direction, emotion: emotionProp = "neutral", on
       width="110"
       height="80"
       shapeRendering={isRotated ? "auto" : "crispEdges"}
-      className={`clawd ${getAnimationClass()} clawd-facial-${facialState}`}
+      className={`mascot${getAnimationClass()} mascot-facial-${facialState}`}
       onClick={onClick}
       onMouseDown={onMouseDown}
       onDoubleClick={onDoubleClick}
@@ -57,7 +57,7 @@ function Clawd({ animationState, direction, emotion: emotionProp = "neutral", on
         transform: `${direction === "left" ? "scaleX(-1)" : "scaleX(1)"} ${isRotated ? "rotate(-10deg)" : ""}`,
       }}
     >
-      <g className="clawd-body">
+      <g className="mascot-body">
         {/* When rotated, use a background path to prevent AA gaps at seams */}
         {isRotated && (
           <path
@@ -76,7 +76,7 @@ function Clawd({ animationState, direction, emotion: emotionProp = "neutral", on
 
         {/* Eyebrows (emotion-based) */}
         {eyebrows && (
-          <g className="clawd-eyebrows">
+          <g className="mascot-eyebrows">
             <line
               x1={eyebrows.left.x1}
               y1={eyebrows.left.y1}
@@ -100,7 +100,7 @@ function Clawd({ animationState, direction, emotion: emotionProp = "neutral", on
 
         {/* Eyes (emotion-based) */}
         <rect
-          className="clawd-eye clawd-eye-left"
+          className="mascot-eye mascot-eye-left"
           x={4 + (leftEye.offsetX || 0)}
           y={leftEye.y}
           width={leftEye.width || 2}
@@ -108,7 +108,7 @@ function Clawd({ animationState, direction, emotion: emotionProp = "neutral", on
           fill="#000000"
         />
         <rect
-          className="clawd-eye clawd-eye-right"
+          className="mascot-eye mascot-eye-right"
           x={16 + (rightEye.offsetX || 0)}
           y={rightEye.y}
           width={rightEye.width || 2}
@@ -118,7 +118,7 @@ function Clawd({ animationState, direction, emotion: emotionProp = "neutral", on
 
         {/* Eye shine (for happy/excited) */}
         {(facialState === "happy" || facialState === "excited") && (
-          <g className="clawd-eye-shine">
+          <g className="mascot-eye-shine">
             <rect x="4.3" y={leftEye.y + 0.3} width="0.6" height="0.6" fill="#ffffff" opacity="0.7" />
             <rect x="16.3" y={rightEye.y + 0.3} width="0.6" height="0.6" fill="#ffffff" opacity="0.7" />
           </g>
@@ -129,11 +129,11 @@ function Clawd({ animationState, direction, emotion: emotionProp = "neutral", on
         <rect x="2" y="8" width="18" height="4" fill="#BD825D" />
 
         {/* Legs */}
-        <g className="clawd-legs">
-          <rect className="clawd-leg clawd-leg-1" x="2" y="12" width="2" height="4" fill="#BD825D" />
-          <rect className="clawd-leg clawd-leg-2" x="6" y="12" width="2" height="4" fill="#BD825D" />
-          <rect className="clawd-leg clawd-leg-3" x="14" y="12" width="2" height="4" fill="#BD825D" />
-          <rect className="clawd-leg clawd-leg-4" x="18" y="12" width="2" height="4" fill="#BD825D" />
+        <g className="mascot-legs">
+          <rect className="mascot-leg mascot-leg-1" x="2" y="12" width="2" height="4" fill="#BD825D" />
+          <rect className="mascot-leg mascot-leg-2" x="6" y="12" width="2" height="4" fill="#BD825D" />
+          <rect className="mascot-leg mascot-leg-3" x="14" y="12" width="2" height="4" fill="#BD825D" />
+          <rect className="mascot-leg mascot-leg-4" x="18" y="12" width="2" height="4" fill="#BD825D" />
         </g>
       </g>
 

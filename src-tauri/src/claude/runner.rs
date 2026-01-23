@@ -135,18 +135,28 @@ pub fn run_query(app: tauri::AppHandle, prompt: String, images: Vec<String>) -> 
     // Write MCP config with correct executable path
     let mcp_config_path = write_mcp_config(&app)?;
 
-    // Get session ID
+    // Get session ID and dev mode state
     let session_id = SESSION_ID.lock().unwrap().clone();
+    let is_dev = *DEV_MODE.lock().unwrap();
 
     // Build command arguments using builder
-    let args = ClaudeCommandBuilder::new()
+    let mut builder = ClaudeCommandBuilder::new()
         .with_streaming_output()
-        .with_mcp_config(&mcp_config_path)
-        .with_allowed_tools(&[
+        .with_mcp_config(&mcp_config_path);
+
+    // In dev mode, allow all tools and skip permission prompts
+    // In normal mode, restrict to only mascot MCP tools
+    if is_dev {
+        builder = builder.with_skip_permissions();
+    } else {
+        builder = builder.with_allowed_tools(&[
             "mcp__mascot__set_emotion",
             "mcp__mascot__move_to",
             "mcp__mascot__capture_screenshot",
-        ])
+        ]);
+    }
+
+    let args = builder
         .with_system_prompt(get_system_prompt())
         .with_session_resume(session_id.as_ref())
         .with_prompt(prompt)

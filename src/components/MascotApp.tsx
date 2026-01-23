@@ -256,7 +256,7 @@ export function MascotApp({ renderMascot, onEmotionChange }: MascotAppProps) {
       onMouseDown={handleMouseDown}
       onDoubleClick={handleDoubleClick}
     >
-      <div className="clawd-wrapper">
+      <div className="mascot-wrapper">
         {renderMascot({
           animationState: mascot.animationState,
           direction: mascot.direction,

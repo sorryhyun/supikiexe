@@ -65,6 +65,11 @@ impl ClaudeCommandBuilder {
         self
     }
 
+    pub fn with_skip_permissions(mut self) -> Self {
+        self.args.push("--dangerously-skip-permissions".to_string());
+        self
+    }
+
     pub fn build(self) -> Vec<String> {
         self.args
     }

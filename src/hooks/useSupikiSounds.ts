@@ -2,11 +2,11 @@ import { useRef, useCallback, useEffect } from "react";
 import type { Emotion } from "../emotion";
 
 // Import sound files
-import goodSound from "../supiki/good.wav";
-import euSound from "../supiki/eu.wav";
-import ueSound from "../supiki/ue.wav";
-import dontpushSound from "../supiki/dontpush.wav";
-import ganbattaSound from "../supiki/ganbatta.wav";
+import goodSound from "../resources/good.wav";
+import euSound from "../resources/eu.wav";
+import ueSound from "../resources/ue.wav";
+import dontpushSound from "../resources/dontpush.wav";
+import ganbattaSound from "../resources/ganbatta.wav";
 
 export type SupikiSoundTrigger = "click" | "emotion";
 

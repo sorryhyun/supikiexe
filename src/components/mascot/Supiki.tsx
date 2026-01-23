@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { AnimationState, Direction } from "../../hooks/useMascotState";
-import supikiImage from "../../supiki/supiki.webp";
-import euSound from "../../supiki/eu.wav";
-import ueSound from "../../supiki/ue.wav";
+import supikiImage from "../../resources/supiki.webp";
+import euSound from "../../resources/eu.wav";
+import ueSound from "../../resources/ue.wav";
 
 interface SupikiProps {
   animationState: AnimationState;
@@ -141,15 +141,15 @@ function Supiki({ animationState, direction, onClick, onMouseDown, onDoubleClick
   const getAnimationClass = () => {
     switch (animationState) {
       case "walking":
-        return "supiki-walking";
+        return "mascot-walking";
       case "jumping":
-        return "supiki-jumping";
+        return "mascot-jumping";
       case "falling":
-        return "supiki-falling";
+        return "mascot-falling";
       case "talking":
-        return "supiki-talking";
+        return "mascot-talking";
       default:
-        return "supiki-idle";
+        return "mascot-idle";
     }
   };
 
@@ -190,7 +190,7 @@ function Supiki({ animationState, direction, onClick, onMouseDown, onDoubleClick
   return (
     <div
       ref={wrapperRef}
-      className={`supiki-wrapper ${getAnimationClass()}`}
+      className={`mascot-wrapper ${getAnimationClass()}`}
       onClick={onClick}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}

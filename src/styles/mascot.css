@@ -1,0 +1,68 @@
+/* Shared mascot styles */
+
+.mascot-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.mascot-wrapper {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.mascot-wrapper img {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
+
+.mascot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease;
+  border: none;
+  outline: none;
+  background: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* Hover effect */
+.mascot-wrapper:hover .mascot,
+.mascot:hover {
+  filter: brightness(1.1);
+}
+
+/* Click feedback */
+.mascot:active {
+  transform: scale(0.95);
+}
+
+/* Animation states - base (no animation by default) */
+.mascot-idle,
+.mascot-talking {
+  /* Static */
+}
+
+.mascot-walking {
+  /* Static by default - character-specific animations can override */
+}
+
+.mascot-jumping {
+  /* Static by default */
+}
+
+.mascot-falling {
+  /* Static by default */
+}

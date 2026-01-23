@@ -1,4 +1,4 @@
-.PHONY: test test-ts test-rust dev dev-supiki build lint clean codegen-tauri
+.PHONY: test test-ts test-rust dev dev-supiki dev-clawd build lint clean codegen-tauri
 
 # Run all tests
 test: test-ts test-rust
@@ -11,13 +11,17 @@ test-ts:
 test-rust:
 	cd src-tauri && cargo test
 
-# Development mode (|| true suppresses Ctrl+C exit code on Windows)
+# Development mode (using npx directly to avoid Windows batch job prompt)
 dev:
-	npm run dev || true
+	npx tauri dev || true
 
-# Development mode (Supiki mascot)
+# Development mode (Supiki mascot with dev features)
 dev-supiki:
-	npm run dev-supiki || true
+	npx cross-env VITE_MASCOT_TYPE=supiki CLAWD_DEV_MODE=1 tauri dev || true
+
+# Development mode (Clawd mascot with dev features)
+dev-clawd:
+	npx cross-env CLAWD_DEV_MODE=1 tauri dev || true
 
 # Build production
 build:

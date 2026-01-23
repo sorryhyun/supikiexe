@@ -1,12 +1,12 @@
 /* Physical state animations - what Clawd is doing */
 
 /* Idle state - static, no animation */
-.clawd-idle {
+.mascot-idle {
   /* No animation */
 }
 
 /* Walking animation - leg movement + body bounce */
-.clawd-walking {
+.mascot-walking {
   animation: walk-bounce 0.3s ease-in-out infinite;
 }
 
@@ -22,22 +22,22 @@
   }
 }
 
-.clawd-walking .clawd-leg-1 {
+.mascot-walking .mascot-leg-1 {
   animation: leg-walk-front 0.3s ease-in-out infinite;
   transform-origin: center top;
 }
 
-.clawd-walking .clawd-leg-2 {
+.mascot-walking .mascot-leg-2 {
   animation: leg-walk-back 0.3s ease-in-out infinite;
   transform-origin: center top;
 }
 
-.clawd-walking .clawd-leg-3 {
+.mascot-walking .mascot-leg-3 {
   animation: leg-walk-front 0.3s ease-in-out infinite 0.15s;
   transform-origin: center top;
 }
 
-.clawd-walking .clawd-leg-4 {
+.mascot-walking .mascot-leg-4 {
   animation: leg-walk-back 0.3s ease-in-out infinite 0.15s;
   transform-origin: center top;
 }
@@ -61,7 +61,7 @@
 }
 
 /* Jumping animation */
-.clawd-jumping {
+.mascot-jumping {
   animation: jump-squash 0.15s ease-out forwards;
 }
 
@@ -74,7 +74,7 @@
   }
 }
 
-.clawd-jumping .clawd-leg {
+.mascot-jumping .mascot-leg {
   animation: legs-tuck 0.2s ease-out forwards;
 }
 
@@ -88,7 +88,7 @@
 }
 
 /* Falling animation */
-.clawd-falling {
+.mascot-falling {
   animation: fall-stretch 0.3s ease-in infinite;
 }
 
@@ -101,7 +101,7 @@
   }
 }
 
-.clawd-falling .clawd-leg {
+.mascot-falling .mascot-leg {
   animation: legs-spread 0.2s ease-out forwards;
 }
 
@@ -115,12 +115,12 @@
 }
 
 /* Talking state - static, uses curious emotion tilt */
-.clawd-talking {
+.mascot-talking {
   /* No animation - relies on curious emotion styling */
 }
 
 /* Landing squash effect (applied temporarily via JS) */
-.clawd-land {
+.mascot-land {
   animation: land-squash 0.2s ease-out forwards;
 }
 

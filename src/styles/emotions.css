@@ -1,12 +1,12 @@
 /* Emotion animations - how Clawd feels */
 
 /* Neutral emotion - no special animation */
-.clawd-emotion-neutral {
+.mascot-emotion-neutral {
   /* Default state, no animation */
 }
 
 /* Happy emotion - gentle bounce */
-.clawd-emotion-happy {
+.mascot-emotion-happy {
   animation: happy-bounce 0.6s ease-in-out infinite;
 }
 
@@ -19,7 +19,7 @@
   }
 }
 
-.clawd-emotion-happy .clawd-eye-shine {
+.mascot-emotion-happy .mascot-eye-shine {
   animation: shine-sparkle 0.8s ease-in-out infinite;
 }
 
@@ -33,7 +33,7 @@
 }
 
 /* Sad emotion - droopy, slow sway */
-.clawd-emotion-sad {
+.mascot-emotion-sad {
   animation: sad-sway 2s ease-in-out infinite;
   filter: brightness(0.9) saturate(0.8);
 }
@@ -48,7 +48,7 @@
 }
 
 /* Excited emotion - energetic bounce */
-.clawd-emotion-excited {
+.mascot-emotion-excited {
   animation: excited-bounce 0.3s ease-in-out infinite;
 }
 
@@ -61,7 +61,7 @@
   }
 }
 
-.clawd-emotion-excited .excited-indicator {
+.mascot-emotion-excited .excited-indicator {
   animation: star-spin 1s linear infinite;
 }
 
@@ -75,7 +75,7 @@
 }
 
 /* Thinking emotion - slight head tilt, looking up */
-.clawd-emotion-thinking {
+.mascot-emotion-thinking {
   animation: thinking-tilt 2s ease-in-out infinite;
 }
 
@@ -88,7 +88,7 @@
   }
 }
 
-.clawd-emotion-thinking .thinking-indicator {
+.mascot-emotion-thinking .thinking-indicator {
   animation: thinking-bubbles 1.5s ease-in-out infinite;
 }
 
@@ -104,7 +104,7 @@
 }
 
 /* Confused emotion - head wobble */
-.clawd-emotion-confused {
+.mascot-emotion-confused {
   animation: confused-wobble 0.5s ease-in-out infinite;
 }
 
@@ -120,7 +120,7 @@
   }
 }
 
-.clawd-emotion-confused .confused-indicator {
+.mascot-emotion-confused .confused-indicator {
   animation: question-bounce 0.8s ease-in-out infinite;
 }
 
@@ -134,7 +134,7 @@
 }
 
 /* Surprised emotion - quick scale pop */
-.clawd-emotion-surprised {
+.mascot-emotion-surprised {
   animation: surprised-pop 0.4s ease-out;
 }
 
@@ -150,7 +150,7 @@
   }
 }
 
-.clawd-emotion-surprised .clawd-eye {
+.mascot-emotion-surprised .mascot-eye {
   animation: eye-widen 0.4s ease-out;
 }
 
