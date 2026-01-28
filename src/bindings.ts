@@ -61,7 +61,8 @@ async isSupikiMode() : Promise<boolean> {
 /**
  * Answer an AskUserQuestion from the agent
  * The tool_use_id identifies which tool call to respond to
- * The answers map question indices to selected answers
+ * The questions_json contains the original questions (needed for proper response format)
+ * The answers map question text to selected answers
  */
 async answerAgentQuestion(toolUseId: string, questionsJson: string, answers: { [key in string]: string }) : Promise<Result<null, string>> {
     try {

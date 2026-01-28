@@ -180,17 +180,18 @@ pub fn get_recent_cwds() -> Vec<String> {
 
 /// Answer an AskUserQuestion from the agent
 /// The tool_use_id identifies which tool call to respond to
-/// The answers map question indices to selected answers
+/// The questions_json contains the original questions (needed for proper response format)
+/// The answers map question text to selected answers
 #[tauri::command]
 #[specta::specta]
 pub fn answer_agent_question(
     tool_use_id: String,
-    _questions_json: String,
+    questions_json: String,
     answers: std::collections::HashMap<String, String>,
 ) -> Result<(), String> {
     let mode = *BACKEND_MODE.lock().unwrap();
     match mode {
-        BackendMode::Claude => respond_to_ask_user_question(&tool_use_id, answers),
+        BackendMode::Claude => respond_to_ask_user_question(&tool_use_id, &questions_json, answers),
         BackendMode::Codex => {
             // Codex doesn't support interactive questions
             Err("Interactive questions not supported in Codex mode.".to_string())

@@ -32,10 +32,11 @@ function ChatWindow() {
     sessionId: viewSessionId || undefined,
   });
 
-  // Skip blur when agent is processing (node.exe spawning can steal focus)
+  // Skip blur when agent is processing or modal is shown
+  // (node.exe spawning can steal focus, and clicking modal buttons can too)
   useEffect(() => {
-    skipBlurRef.current = chat.isTyping;
-  }, [chat.isTyping]);
+    skipBlurRef.current = chat.isTyping || !!chat.pendingQuestion || !!chat.pendingPlanModeExit;
+  }, [chat.isTyping, chat.pendingQuestion, chat.pendingPlanModeExit]);
 
   // Handle blur: emit event and hide window
   const handleBlur = useCallback(async () => {

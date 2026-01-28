@@ -1,53 +1,106 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import supikiImage from "../resources/supiki.webp";
+import { usePhysics } from "../hooks/usePhysics";
+import {
+  MINI_WINDOW_WIDTH,
+  MINI_WINDOW_HEIGHT,
+  MINI_AUTO_WALK_MIN_DELAY,
+  MINI_AUTO_WALK_MAX_DELAY,
+  MINI_WALK_DURATION,
+  MINI_AUTO_WALK_CHANCE,
+} from "../constants";
 
 interface MiniSupikiAppProps {
   id: string;
 }
 
+type MiniMascotState = "idle" | "walking" | "falling";
+
 function MiniSupikiApp({ id }: MiniSupikiAppProps) {
   const [isVisible, setIsVisible] = useState(false);
-  const [bobOffset, setBobOffset] = useState(0);
-  const animationRef = useRef<number | null>(null);
+  const [mascotState, setMascotState] = useState<MiniMascotState>("falling");
+  const [facingDirection, setFacingDirection] = useState<"left" | "right">("right");
+  const walkTimeoutRef = useRef<number | null>(null);
 
-  // Pop-in animation on mount
-  useEffect(() => {
-    // Small delay then show
-    const timer = setTimeout(() => setIsVisible(true), 50);
-    return () => clearTimeout(timer);
+  const handleGrounded = useCallback((grounded: boolean) => {
+    if (grounded) {
+      setMascotState((prev) => (prev === "falling" ? "idle" : prev));
+    }
   }, []);
 
-  // Bobbing animation for "working" effect
+  const handleEdgeHit = useCallback((edge: "left" | "right") => {
+    setFacingDirection(edge === "left" ? "right" : "left");
+    setMascotState("idle");
+  }, []);
+
+  // Physics for movement and standing on taskbar
+  const physics = usePhysics({
+    windowWidth: MINI_WINDOW_WIDTH,
+    windowHeight: MINI_WINDOW_HEIGHT,
+    onPositionUpdate: () => {},
+    onGrounded: handleGrounded,
+    onEdgeHit: handleEdgeHit,
+    config: {
+      walkSpeed: 1.5, // Slightly slower for mini mascot
+    },
+  });
+
+  // Auto-walk scheduler for mini mascots (more frequent than main)
   useEffect(() => {
-    let startTime = Date.now();
+    if (mascotState !== "idle") return;
 
-    const animate = (currentTime: number) => {
-      const elapsed = currentTime - startTime;
-      // Gentle bobbing motion
-      const offset = Math.sin(elapsed / 300) * 2;
-      setBobOffset(offset);
-      animationRef.current = requestAnimationFrame(animate);
-    };
+    const delay =
+      MINI_AUTO_WALK_MIN_DELAY +
+      Math.random() * (MINI_AUTO_WALK_MAX_DELAY - MINI_AUTO_WALK_MIN_DELAY);
 
-    animationRef.current = requestAnimationFrame(animate);
+    const timeoutId = window.setTimeout(() => {
+      if (Math.random() < MINI_AUTO_WALK_CHANCE) {
+        const direction = Math.random() > 0.5 ? "right" : "left";
+        setFacingDirection(direction);
+        setMascotState("walking");
+        physics.startWalking(direction);
+
+        walkTimeoutRef.current = window.setTimeout(() => {
+          physics.stopWalking();
+          setMascotState("idle");
+        }, MINI_WALK_DURATION);
+      }
+    }, delay);
 
     return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
+      window.clearTimeout(timeoutId);
+      if (walkTimeoutRef.current) {
+        window.clearTimeout(walkTimeoutRef.current);
       }
     };
-  }, []);
+  }, [mascotState, physics]);
+
+  // Pop-in animation and start physics
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsVisible(true);
+      physics.startPhysics();
+    }, 50);
+
+    return () => {
+      clearTimeout(timer);
+      physics.stopPhysics();
+    };
+  }, [physics]);
 
   // Listen for close event from main window
   useEffect(() => {
     const currentWindow = getCurrentWindow();
 
-    // Also close if the window loses focus and main mascot signals
     const unlisten = listen("close-mini-mascot", async (event) => {
       const payload = event.payload as { id?: string };
       if (!payload.id || payload.id === id) {
+        if (walkTimeoutRef.current) {
+          window.clearTimeout(walkTimeoutRef.current);
+        }
+        physics.stopPhysics();
         await currentWindow.close();
       }
     });
@@ -55,19 +108,21 @@ function MiniSupikiApp({ id }: MiniSupikiAppProps) {
     return () => {
       unlisten.then((fn) => fn());
     };
-  }, [id]);
+  }, [id, physics]);
 
   return (
     <div
       className="mini-mascot-container"
       style={{
-        width: "80px",
-        height: "70px",
+        width: `${MINI_WINDOW_WIDTH}px`,
+        height: `${MINI_WINDOW_HEIGHT}px`,
         display: "flex",
         alignItems: "flex-end",
         justifyContent: "center",
-        transform: `scale(${isVisible ? 1 : 0}) translateY(${bobOffset}px)`,
-        transition: isVisible ? "transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)" : "none",
+        transform: `scale(${isVisible ? 1 : 0})`,
+        transition: isVisible
+          ? "transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)"
+          : "none",
         transformOrigin: "center bottom",
       }}
     >
@@ -80,6 +135,8 @@ function MiniSupikiApp({ id }: MiniSupikiAppProps) {
           width: "auto",
           height: "auto",
           filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.2))",
+          transform: facingDirection === "left" ? "scaleX(-1)" : "scaleX(1)",
+          transition: "transform 0.1s ease-out",
         }}
         draggable={false}
       />

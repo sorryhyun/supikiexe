@@ -10,6 +10,9 @@ use std::process::{ChildStdin, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
+
 use base64::prelude::*;
 use image::ImageFormat;
 use serde::{Deserialize, Serialize};
@@ -182,12 +185,12 @@ fn get_system_prompt() -> String {
         "You are Supiki, a helpful AI assistant mascot on the user's desktop. \
          You have access to Claude Code capabilities and can help with coding tasks. \
          Use set_emotion to express yourself and move_to to navigate the screen. \
-         Be professional but friendly!"
+         Be professional but friendly! When using tables, keep them to 3 columns or fewer."
             .to_string()
     } else {
         "You are Supiki, a friendly mascot that lives on the user's desktop. \
          You can express emotions using set_emotion and walk around using move_to. \
-         Be cheerful and helpful! Keep responses concise."
+         Be cheerful and helpful! Keep responses concise. When using tables, keep them to 3 columns or fewer."
             .to_string()
     }
 }
@@ -246,11 +249,13 @@ fn convert_to_webp(base64_data: &str, original_media_type: &str) -> (String, Str
 }
 
 /// Send a tool result back to Claude CLI via stdin
+/// Tool results must be wrapped in a user message structure for stream-json format
 pub fn send_tool_result(tool_use_id: &str, content: &str, is_error: bool) -> Result<(), String> {
     let mut stdin_guard = CLAUDE_STDIN.lock().map_err(|e| format!("Lock error: {}", e))?;
 
     if let Some(ref mut stdin) = *stdin_guard {
-        let result = if is_error {
+        // Build the tool_result content block
+        let tool_result_block = if is_error {
             serde_json::json!({
                 "type": "tool_result",
                 "tool_use_id": tool_use_id,
@@ -265,7 +270,16 @@ pub fn send_tool_result(tool_use_id: &str, content: &str, is_error: bool) -> Res
             })
         };
 
-        let json_str = result.to_string();
+        // Wrap in user message structure (same format as build_stream_json_message)
+        let message = serde_json::json!({
+            "type": "user",
+            "message": {
+                "role": "user",
+                "content": [tool_result_block]
+            }
+        });
+
+        let json_str = message.to_string();
         eprintln!("[Rust] Sending tool result: {}", json_str);
 
         stdin
@@ -282,14 +296,87 @@ pub fn send_tool_result(tool_use_id: &str, content: &str, is_error: bool) -> Res
     }
 }
 
+/// Send AskUserQuestion result back to Claude CLI via stdin
+/// This uses the special format with toolUseResult for structured data
+/// IMPORTANT: We include both a tool_result AND a text message so Claude responds to the answer
+pub fn send_ask_user_question_result(
+    tool_use_id: &str,
+    content: &str,
+    tool_use_result: serde_json::Value,
+) -> Result<(), String> {
+    let mut stdin_guard = CLAUDE_STDIN.lock().map_err(|e| format!("Lock error: {}", e))?;
+
+    if let Some(ref mut stdin) = *stdin_guard {
+        // Build the tool_result content block
+        let tool_result_block = serde_json::json!({
+            "type": "tool_result",
+            "tool_use_id": tool_use_id,
+            "content": content
+        });
+
+        // Also include a text block so Claude responds to the user's answer
+        // Without this, Claude just sees a tool_result confirmation and ends the turn
+        let text_block = serde_json::json!({
+            "type": "text",
+            "text": content
+        });
+
+        // Build message with both tool_result and text, plus toolUseResult field
+        let message = serde_json::json!({
+            "type": "user",
+            "message": {
+                "role": "user",
+                "content": [tool_result_block, text_block]
+            },
+            "toolUseResult": tool_use_result
+        });
+
+        let json_str = message.to_string();
+        eprintln!("[Rust] Sending AskUserQuestion result: {}", json_str);
+
+        stdin
+            .write_all(json_str.as_bytes())
+            .map_err(|e| format!("Failed to write tool result: {}", e))?;
+        stdin
+            .write_all(b"\n")
+            .map_err(|e| format!("Failed to write newline: {}", e))?;
+        stdin.flush().map_err(|e| format!("Failed to flush: {}", e))?;
+
+        Ok(())
+    } else {
+        Err("Claude stdin not available".to_string())
+    }
+}
+
 /// Send AskUserQuestion response back to Claude CLI
+/// The response must match Claude Code's expected format with human-readable content
+/// and structured toolUseResult data
 pub fn respond_to_ask_user_question(
     tool_use_id: &str,
+    questions_json: &str,
     answers: std::collections::HashMap<String, String>,
 ) -> Result<(), String> {
-    let content = serde_json::to_string(&serde_json::json!({ "answers": answers }))
-        .map_err(|e| format!("Failed to serialize answers: {}", e))?;
-    send_tool_result(tool_use_id, &content, false)
+    // Parse the questions JSON
+    let questions: serde_json::Value = serde_json::from_str(questions_json)
+        .map_err(|e| format!("Failed to parse questions JSON: {}", e))?;
+
+    // Build human-readable content string (matching Claude Code's format)
+    let answers_text: Vec<String> = answers
+        .iter()
+        .map(|(q, a)| format!("\"{}\"=\"{}\"", q, a))
+        .collect();
+    let content = format!(
+        "User has answered your questions: {}. You can now continue with the user's answers in mind.",
+        answers_text.join(", ")
+    );
+
+    // Build the tool_use_result with structured data
+    let tool_use_result = serde_json::json!({
+        "questions": questions,
+        "answers": answers
+    });
+
+    send_ask_user_question_result(tool_use_id, &content, tool_use_result)
 }
 
 /// Confirm ExitPlanMode - allows Claude to exit plan mode
@@ -359,12 +446,12 @@ pub fn run_query(app: tauri::AppHandle, prompt: String, images: Vec<String>) -> 
     // Get session ID and dev mode state
     let session_id = SESSION_ID.lock().unwrap().clone();
     let is_dev = *DEV_MODE.lock().unwrap();
-    let has_images = !images.is_empty();
 
     // Build command arguments using builder
-    // Always use streaming input for bidirectional communication (needed for interactive tools)
+    // Use interactive streaming mode for bidirectional communication (needed for interactive tools)
+    // Don't use --print flag as it causes the turn to complete immediately without waiting for tool results
     let mut builder = ClaudeCommandBuilder::new()
-        .with_streaming_output()
+        .with_interactive_streaming()
         .with_streaming_input()
         .with_mcp_config(&mcp_config_path);
 
@@ -384,17 +471,15 @@ pub fn run_query(app: tauri::AppHandle, prompt: String, images: Vec<String>) -> 
         .with_system_prompt(get_system_prompt())
         .with_session_resume(session_id.as_ref());
 
-    // Only add prompt as CLI arg if no images (otherwise send via stdin)
-    if !has_images {
-        builder = builder.with_prompt(prompt.clone());
-    }
+    // Don't add prompt as CLI arg - we send everything via stdin for interactive mode
+    // This ensures proper handling of tool results for AskUserQuestion etc.
 
     let args = builder.build();
 
     eprintln!(
-        "[Rust] Running claude CLI with {} args, has_images={}",
+        "[Rust] Running claude CLI with {} args, images={}",
         args.len(),
-        has_images
+        images.len()
     );
 
     // Build the command
@@ -404,6 +489,13 @@ pub fn run_query(app: tauri::AppHandle, prompt: String, images: Vec<String>) -> 
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+
+    // On Windows, hide the terminal window
+    #[cfg(windows)]
+    {
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
 
     // Set working directory if custom cwd is set
     let custom_cwd = SIDECAR_CWD.lock().unwrap().clone();
@@ -532,6 +624,7 @@ fn handle_stream_event(app: &tauri::AppHandle, event: StreamEvent) {
             for block in message.content {
                 match block {
                     ContentBlock::Text { text } => {
+                        eprintln!("[Rust] Emitting agent-stream with {} chars", text.len());
                         let _ = app.emit("agent-stream", &text);
                     }
                     ContentBlock::ToolUse { id, name, input } => {
@@ -660,7 +753,17 @@ pub fn clear_session() {
 
 /// Check if claude CLI is available
 pub fn check_claude_available() -> Result<String, String> {
-    match Command::new("claude").arg("--version").output() {
+    let mut cmd = Command::new("claude");
+    cmd.arg("--version");
+
+    // On Windows, hide the terminal window
+    #[cfg(windows)]
+    {
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    match cmd.output() {
         Ok(output) => {
             if output.status.success() {
                 let version = String::from_utf8_lossy(&output.stdout);

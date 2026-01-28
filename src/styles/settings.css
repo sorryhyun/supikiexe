@@ -106,6 +106,8 @@
   font-size: 9px;
   color: var(--color-text-muted);
   margin-top: 2px;
+  text-align: center;
+  word-break: keep-all;
 }
 
 .backend-status {

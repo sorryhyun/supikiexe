@@ -9,6 +9,9 @@ use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::thread;
 
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
+
 use base64::{engine::general_purpose::STANDARD, Engine};
 use serde::Deserialize;
 use tauri::{Emitter, Manager};
@@ -323,12 +326,12 @@ fn get_system_prompt() -> String {
         "You are Supiki, a helpful AI assistant mascot on the user's desktop. \
          You have access to coding capabilities and can help with coding tasks. \
          Use mcp__mascot__set_emotion to express yourself and mcp__mascot__move_to to navigate the screen. \
-         Be professional but friendly!"
+         Be professional but friendly! When using tables, keep them to 3 columns or fewer."
             .to_string()
     } else {
         "You are Supiki, a friendly mascot that lives on the user's desktop. \
          You can express emotions using mcp__mascot__set_emotion and walk around using mcp__mascot__move_to. \
-         Be cheerful and helpful! Keep responses concise."
+         Be cheerful and helpful! Keep responses concise. When using tables, keep them to 3 columns or fewer."
             .to_string()
     }
 }
@@ -387,6 +390,13 @@ pub fn run_query(app: tauri::AppHandle, prompt: String, images: Vec<String>) -> 
     cmd.args(&args)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+
+    // On Windows, hide the terminal window
+    #[cfg(windows)]
+    {
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
 
     // Spawn the process
     let mut child = cmd
@@ -634,6 +644,8 @@ pub fn clear_session() {
 pub fn check_codex_available() -> Result<String, String> {
     #[cfg(target_os = "windows")]
     {
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+
         // On Windows, check for codex.exe or bundled exe in project root
         let paths = vec![
             PathBuf::from("codex.exe"),
@@ -642,7 +654,11 @@ pub fn check_codex_available() -> Result<String, String> {
 
         for path in paths {
             if path.exists() {
-                match Command::new(&path).arg("--version").output() {
+                let mut cmd = Command::new(&path);
+                cmd.arg("--version");
+                cmd.creation_flags(CREATE_NO_WINDOW);
+
+                match cmd.output() {
                     Ok(output) => {
                         if output.status.success() {
                             let version = String::from_utf8_lossy(&output.stdout);
@@ -685,7 +701,17 @@ pub fn check_codex_available() -> Result<String, String> {
 pub fn check_codex_available_with_app(app: &tauri::AppHandle) -> Result<String, String> {
     match get_codex_exe_path(app) {
         Some(path) => {
-            match Command::new(&path).arg("--version").output() {
+            let mut cmd = Command::new(&path);
+            cmd.arg("--version");
+
+            // On Windows, hide the terminal window
+            #[cfg(windows)]
+            {
+                const CREATE_NO_WINDOW: u32 = 0x08000000;
+                cmd.creation_flags(CREATE_NO_WINDOW);
+            }
+
+            match cmd.output() {
                 Ok(output) => {
                     if output.status.success() {
                         let version = String::from_utf8_lossy(&output.stdout);

@@ -14,9 +14,10 @@ impl ClaudeCommandBuilder {
         Self { args: Vec::new() }
     }
 
-    pub fn with_streaming_output(mut self) -> Self {
+    /// Configure for streaming JSON output in interactive mode (waits for tool results)
+    /// Use this instead of with_streaming_output when bidirectional communication is needed
+    pub fn with_interactive_streaming(mut self) -> Self {
         self.args.extend([
-            "--print".to_string(),
             "--output-format".to_string(),
             "stream-json".to_string(),
             "--verbose".to_string(),
@@ -60,12 +61,6 @@ impl ClaudeCommandBuilder {
         self
     }
 
-    pub fn with_prompt(mut self, prompt: String) -> Self {
-        self.args.push(prompt);
-        self
-    }
-
-
     pub fn with_skip_permissions(mut self) -> Self {
         self.args.push("--dangerously-skip-permissions".to_string());
         self
@@ -89,13 +84,12 @@ mod tests {
     #[test]
     fn test_builder_basic() {
         let args = ClaudeCommandBuilder::new()
-            .with_streaming_output()
-            .with_prompt("hello".to_string())
+            .with_interactive_streaming()
             .build();
 
-        assert!(args.contains(&"--print".to_string()));
+        assert!(args.contains(&"--output-format".to_string()));
         assert!(args.contains(&"stream-json".to_string()));
-        assert!(args.contains(&"hello".to_string()));
+        assert!(args.contains(&"--verbose".to_string()));
     }
 
     #[test]

@@ -12,14 +12,14 @@ export const MINI_WINDOW_HEIGHT = 70;
 export const MAX_MINI_MASCOTS = 5;
 export const CHAT_WIDTH = 280;
 export const CHAT_HEIGHT = 280;
-export const CONTEXT_MENU_WIDTH = 90;
-export const CONTEXT_MENU_HEIGHT = 100;
+export const CONTEXT_MENU_WIDTH = 110;
+export const CONTEXT_MENU_HEIGHT = 115;
 export const HISTORY_LIST_WIDTH = 280;
 export const HISTORY_LIST_HEIGHT = 350;
-export const SETTINGS_WINDOW_WIDTH = 260;
-export const SETTINGS_WINDOW_HEIGHT = 200;
-export const CWD_WINDOW_WIDTH = 280;
-export const CWD_WINDOW_HEIGHT = 220;
+export const SETTINGS_WINDOW_WIDTH = 280;
+export const SETTINGS_WINDOW_HEIGHT = 240;
+export const CWD_WINDOW_WIDTH = 300;
+export const CWD_WINDOW_HEIGHT = 260;
 
 // Chat window positioning relative to Clawd
 export const DEFAULT_CHAT_OFFSET = {
@@ -32,6 +32,12 @@ export const AUTO_WALK_MIN_DELAY = 15000;
 export const AUTO_WALK_MAX_DELAY = 45000; // MIN + 30000 random
 export const WALK_DURATION = 1500;
 export const AUTO_WALK_CHANCE = 0.3; // 30% chance to walk
+
+// Mini mascot auto-walk (more frequent, shorter walks - they're busy!)
+export const MINI_AUTO_WALK_MIN_DELAY = 3000;
+export const MINI_AUTO_WALK_MAX_DELAY = 8000;
+export const MINI_WALK_DURATION = 800;
+export const MINI_AUTO_WALK_CHANCE = 0.5; // 50% chance to walk
 
 // Drag detection
 export const DRAG_THRESHOLD = 5;

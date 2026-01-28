@@ -7,6 +7,5 @@ mod runner;
 
 pub use runner::{
     check_claude_available, clear_session, confirm_exit_plan_mode, deny_exit_plan_mode,
-    respond_to_ask_user_question, run_query, AskUserQuestionEvent, ExitPlanModeEvent,
-    QuestionData, ToolUseEvent,
+    respond_to_ask_user_question, run_query, ToolUseEvent,
 };

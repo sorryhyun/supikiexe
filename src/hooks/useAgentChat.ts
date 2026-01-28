@@ -137,8 +137,12 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
   );
 
   const updateStreamingMessage = useCallback((content: string) => {
-    if (!streamingMessageId.current) return;
+    if (!streamingMessageId.current) {
+      console.log("[useAgentChat] updateStreamingMessage: no streamingMessageId");
+      return;
+    }
 
+    console.log("[useAgentChat] updateStreamingMessage: updating message", streamingMessageId.current, "with content length:", content.length);
     setMessages((prev) =>
       prev.map((msg) =>
         msg.id === streamingMessageId.current
@@ -155,7 +159,14 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === streamingMessageId.current
-            ? { ...msg, content, isStreaming: false, ...metadata }
+            ? {
+                ...msg,
+                // Keep existing content if new content is empty
+                // (agent-result can have empty text when response involves tool use)
+                content: content || msg.content,
+                isStreaming: false,
+                ...metadata,
+              }
             : msg
         )
       );
@@ -194,6 +205,7 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
         },
 
         onPartialMessage: (partialContent) => {
+          console.log("[useAgentChat] onPartialMessage called, content length:", partialContent.length, "streamingMessageId:", streamingMessageId.current);
           setStreamingState((prev) => ({ ...prev, partialContent }));
           updateStreamingMessage(partialContent);
           // Note: Emotions are handled via MCP events from the sidecar
@@ -294,12 +306,39 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
     async (answers: Record<string, string>) => {
       if (!pendingQuestion) return;
 
+      console.log("[useAgentChat] answerQuestion: answering question", pendingQuestion.questionId);
+
       try {
+        // Finalize any existing streaming message first
+        if (streamingMessageId.current) {
+          console.log("[useAgentChat] answerQuestion: finalizing old message", streamingMessageId.current);
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === streamingMessageId.current
+                ? { ...msg, isStreaming: false }
+                : msg
+            )
+          );
+        }
+
+        // Create a new streaming placeholder for Claude's response
+        const placeholderMsg = addMessage("mascot", "", { isStreaming: true });
+        streamingMessageId.current = placeholderMsg.id;
+        console.log("[useAgentChat] answerQuestion: created new placeholder", placeholderMsg.id);
+
+        // Reset streaming state
+        setStreamingState((prev) => ({
+          ...prev,
+          isStreaming: true,
+          partialContent: "",
+        }));
+
         await agentService.current.answerQuestion(
           pendingQuestion.questionId,
           pendingQuestion.questions,
           answers
         );
+        console.log("[useAgentChat] answerQuestion: answer sent, closing modal");
         setPendingQuestion(null);
         // Return to neutral or thinking while processing
         onEmotionChange?.("thinking");
@@ -308,7 +347,7 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
         setError(err instanceof Error ? err : new Error(String(err)));
       }
     },
-    [pendingQuestion, onEmotionChange]
+    [pendingQuestion, onEmotionChange, addMessage]
   );
 
   // Cancel/dismiss a pending question

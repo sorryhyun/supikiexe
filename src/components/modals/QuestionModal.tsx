@@ -133,9 +133,14 @@ function QuestionModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [allAnswered, handleSubmit, hasMultipleQuestions, goToPrev, goToNext]);
 
+  // Stop propagation to prevent parent drag handlers from interfering
+  const handleModalMouseDown = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
   return (
-    <div className="modal-overlay question-modal-overlay">
-      <div className="modal question-modal">
+    <div className="modal-overlay question-modal-overlay" onMouseDown={handleModalMouseDown}>
+      <div className="modal question-modal" onMouseDown={handleModalMouseDown}>
         <div className="modal-header question-modal-header">
           <span>{t("questionModal.title")}</span>
           {onCancel && (
